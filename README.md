@@ -1,4 +1,4 @@
-# Route Importer  (v0.3.0)
+# Route Importer  (v0.4.0)
 
 Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-input Excel
 (same layout as `RS17_Line7_Route_Input_v1.3.xlsx`, plus extra tabs).
@@ -25,6 +25,7 @@ check settings → **Create route Excel**.
 If double-click does not start Python: right-click → *Open with* → Python, or open the file in
 IDLE / VS Code and press F5.
 Command line: `python -m route_importer.cli a.pdf b.dxf -o out -n BMRCL_ORR`
+(several CAD files on one route: `... -r Line7_ring.txt -d DN`)
 
 Output:
 - `<name>_Route_Input.xlsx` – main line (banded drawings)
@@ -32,6 +33,20 @@ Output:
   - **CAD output = single** (default): one SEC file `<name>_UP_Route_Input.xlsx` – the chosen direction,
     branches joined in chainage order (e.g. UP LINE-1 to 53+000, then UP LINE-2 to Shiv Vihar); sidings left out
   - **CAD output = separate**: one file per profile (`<name>_UP_LINE_1_…`, `<name>_DN_LINE_1_…`, sidings …)
+- **Route to build** (box in the window, or `route_stations` in settings.json): the stations of the
+  line you need, in running order – one per line or `A > B > C`, `# comments` allowed, *Load list…* /
+  *Save list…* for .txt files. The tool then reads **all** the drawings you added (several files,
+  several sections, UP and DN) and writes **one** file `<name>_DN_Route_Input.xlsx` that runs through
+  those stations on the chosen line (Direction, default DN):
+  - each stretch is taken from the profile of that line; where the drawings have no profile of that
+    line the other line is used and the QA sheet says so; branches to stations not in your list are
+    never followed (e.g. Maujpur → Shiv Vihar when the route goes on to Yamuna Vihar)
+  - stretches no drawing shows (sheet breaks) get grades calculated from the levels either side,
+    comment *Calculated*, and a QA WARN
+  - `NAME = 66045` gives a chainage for a station the drawings do not show – e.g. a ring line that
+    closes back at its start (Line-7: `MUKUNDPUR = 66045`, the same platform as Majlis Park at -363.8)
+  - other names a drawing uses for a station: `station_aliases` in settings.json
+    (e.g. `"MUKUNDPUR": ["MAJLIS PARK"]`)
 - `<name>_Depot_Route_Input.xlsx` – sheets whose title says DEPOT
 
 ## How it reads drawings
@@ -69,7 +84,7 @@ Chainage: `km+m` (`2+816.250`), `CH:`, km or m → m. Cant: mm / m / `Ca=` / `SE
 - Curves sheet extent: full TS→ST (default, as in the RS17 Line-7 route input), or arc + half transitions / arc only.
 - Gradient change point at each vertical curve: PVT (default, as in the RS17 Line-7 route input), VPI or PVC.
 - Speed and cant: from the drawing's curve table when there is one (marked "From drawing"), otherwise calculated.
-- Tunnels are not on GAD drawings – fill manually.
+- Tunnels: read from the structure marks of CAD drawings (START/END OF U/G RAMP, C&C, TBM, ELEVATED RAMP, VIADUCT + chainage); U/G ramps count as tunnel. A tunnel whose end no drawing shows is cut at the end of that drawing (QA WARN). PDF band drawings: fill manually.
 
 ## Versions
 See `CHANGELOG.md`. Releases are tagged (`v0.1.0`, ...). Download a tagged version from GitHub → Releases/Tags → *Download ZIP*.

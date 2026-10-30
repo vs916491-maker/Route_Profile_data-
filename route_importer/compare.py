@@ -42,7 +42,9 @@ def load_route(path):
                 if _num(r.get("from_m")) and _num(r.get("radius_m")))
     sp = sorted((float(r["from_m"]), float(r["kmh"])) for r in _rows(wb, "SpeedLimits")
                 if _num(r.get("from_m")) and _num(r.get("kmh")))
-    return {"stations": st, "gradients": gr, "curves": cu, "speeds": sp}
+    tu = sorted((float(r["from_m"]), float(r["to_m"])) for r in _rows(wb, "Tunnels")
+                if _num(r.get("from_m")) and _num(r.get("to_m")))
+    return {"stations": st, "gradients": gr, "curves": cu, "speeds": sp, "tunnels": tu}
 
 
 def _step_value(steps, x):
@@ -120,6 +122,11 @@ def compare(gen, ref, lo=None, hi=None, grid=1.0):
     res["curve_len_ref"] = float((k_ref > 0).sum() * grid)
     res["curve_len_gen"] = float((k_gen > 0).sum() * grid)
     res["curve_work_ratio"] = float(k_gen.sum() / k_ref.sum()) if k_ref.sum() else None
+    # ---------------------------------------------------------- tunnels
+    def in_t(tl):
+        return np.array([any(a <= x < b for a, b in tl) for x in xs]) if tl else np.zeros(len(xs), bool)
+    t_ref, t_gen = in_t(ref.get("tunnels")), in_t(gen.get("tunnels"))
+    res["tunnel_m"] = (float(t_ref.sum() * grid), float(t_gen.sum() * grid), float((t_ref & t_gen).sum() * grid))
     # ---------------------------------------------------------- speeds
     if ref["speeds"] and gen["speeds"]:
         v_ref = np.array([_step_value(ref["speeds"], x) or 0 for x in xs])
@@ -150,6 +157,7 @@ def write_report(res, path, gen_name, ref_name):
         ("Length in curves ref / generated (m)", f"{res['curve_len_ref']:.0f} / {res['curve_len_gen']:.0f}"),
         ("Curve resistance work generated / ref (sum 1/R)", f"{res['curve_work_ratio']:.3f}" if res["curve_work_ratio"] else "-"),
     ]
+    lines.append(("Tunnel length ref / generated / both (m)", "%.0f / %.0f / %.0f" % res["tunnel_m"]))
     if "speed_equal" in res:
         lines += [("Speed limit equal / within 5 km/h", f"{res['speed_equal']:.1f} % / {res['speed_within5']:.1f} %"),
                   ("Mean speed limit ref / generated", f"{res['speed_mean_ref']:.1f} / {res['speed_mean_gen']:.1f} km/h")]

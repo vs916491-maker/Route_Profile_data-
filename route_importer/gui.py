@@ -32,7 +32,7 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Route Importer - GAD drawings to SEC route input")
-        self.geometry("980x700")
+        self.geometry("1000x820")
         self.cfg = config.load(SETTINGS)
         self.files: list[str] = []
         self.q: queue.Queue = queue.Queue()
@@ -78,7 +78,7 @@ class App(tk.Tk):
         ttk.Combobox(sf, textvariable=self.cout, width=24, state="readonly",
                      values=["single", "separate"]).grid(row=i + 4, column=1, padx=4)
         ttk.Label(sf, text="Direction (single route)").grid(row=i + 5, column=0, sticky="w", padx=4)
-        self.cdir = tk.StringVar(value=self.cfg.get("cad_direction", "UP"))
+        self.cdir = tk.StringVar(value=self.cfg.get("cad_direction", "DN"))
         ttk.Combobox(sf, textvariable=self.cdir, width=24, state="readonly",
                      values=["UP", "DN"]).grid(row=i + 5, column=1, padx=4)
         ttk.Label(sf, text="Gradient changes at").grid(row=i + 3, column=0, sticky="w", padx=4)
@@ -92,6 +92,18 @@ class App(tk.Tk):
         self.cmt = tk.BooleanVar(value=self.cfg["sec_comment_column"])
         ttk.Checkbutton(sf, text="Comment column in SEC sheets", variable=self.cmt).grid(
             row=i + 2, column=0, columnspan=2, sticky="w", padx=4)
+
+        rt = ttk.LabelFrame(self, text="Route to build (optional): stations in running order, one per line or "
+                                       "separated by '>'.  'NAME = 66045' fixes a station the drawings do not show "
+                                       "(e.g. the ring closing back at the start).  Empty = whole drawings.")
+        rt.pack(fill="x", **pad)
+        self.route = tk.Text(rt, height=4, wrap="word", font=("Consolas", 9))
+        self.route.pack(side="left", fill="x", expand=True, padx=4, pady=4)
+        self.route.insert("1.0", self.cfg.get("route_stations", ""))
+        rb = ttk.Frame(rt); rb.pack(side="left", fill="y")
+        ttk.Button(rb, text="Load list...", command=self._load_route).pack(fill="x", padx=4, pady=2)
+        ttk.Button(rb, text="Save list...", command=self._save_route).pack(fill="x", padx=4, pady=2)
+        ttk.Button(rb, text="Clear", command=lambda: self.route.delete("1.0", "end")).pack(fill="x", padx=4, pady=2)
 
         rf = ttk.Frame(self); rf.pack(fill="x", **pad)
         self.btn = ttk.Button(rf, text="Create route Excel", command=self._run)
@@ -131,6 +143,19 @@ class App(tk.Tk):
     def _clear(self):
         self.lb.delete(0, "end"); self.files.clear()
 
+    def _load_route(self):
+        f = filedialog.askopenfilename(filetypes=[("Route list", "*.txt"), ("All", "*.*")])
+        if f:
+            with open(f, encoding="utf-8") as fh:
+                txt = fh.read()
+            self.route.delete("1.0", "end"); self.route.insert("1.0", txt)
+
+    def _save_route(self):
+        f = filedialog.asksaveasfilename(defaultextension=".txt", filetypes=[("Route list", "*.txt")])
+        if f:
+            with open(f, "w", encoding="utf-8") as fh:
+                fh.write(self.route.get("1.0", "end").strip() + "\n")
+
     def _open_out(self):
         p = self.out.get()
         if sys.platform.startswith("win"):
@@ -145,6 +170,7 @@ class App(tk.Tk):
         self.cfg["gradient_change_at"] = self.gat.get()
         self.cfg["cad_output"] = self.cout.get()
         self.cfg["cad_direction"] = self.cdir.get()
+        self.cfg["route_stations"] = self.route.get("1.0", "end").strip()
         self.cfg["ocr"] = self.ocr.get()
         self.cfg["sec_comment_column"] = self.cmt.get()
         config.save(self.cfg, SETTINGS)

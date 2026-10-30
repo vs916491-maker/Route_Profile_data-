@@ -140,6 +140,16 @@ def build_route(name: str, datas: list[SheetData], sheets, cfg: dict,
             r.sources.append({"sheet": d.sheet.label, "band": row, "text": it.text, "value": val,
                               "ch": ch, "conf": round(it.conf, 2), "method": it.method})
 
+    # -------------------------------------------------------- tunnels (CAD structure marks)
+    for d in good:
+        if getattr(d, "tunnels", None) is not None:
+            r.tunnels = [(a, b) for a, b in d.tunnels]
+            for a, b in r.tunnels:
+                r.add_qa("Tunnel", "INFO", f"{fmt_chainage(a)}..{fmt_chainage(b)} from the structure marks "
+                         "(U/G ramp, cut & cover, TBM count as tunnel)", a)
+            for n in getattr(d, "tunnel_notes", []):
+                r.add_qa("Tunnel", "WARN", n)
+
     # -------------------------------------------------------- coverage
     spans = sorted((d.ch_min, d.ch_max) for d in good)
     cov = []
@@ -236,10 +246,20 @@ def _build_vertical(r: Route, good, cfg):
     segs = []
     for a, b in zip(edges, edges[1:]):
         inside = [g for g in obs if a <= g["ch"] < b]
+        if not inside:
+            # no grade has its middle here (short piece cut by a curve end or the route end):
+            # take the grade that covers most of the piece
+            ov = [(min(b, g["to"]) - max(a, g["from"]), g) for g in obs
+                  if g.get("from") is not None and g.get("to") is not None]
+            ov = [x for x in ov if x[0] > 0.5 * (b - a)]
+            if ov:
+                inside = [max(ov, key=lambda x: x[0])[1]]
         if inside:
             vals = {round(g["permil"], 3) for g in inside}
             best = max(inside, key=lambda g: g["conf"])
             cmt = "From drawing"
+            if best.get("bridged"):
+                cmt = "Calculated: no profile in the drawings here - grade from the levels either side"
             if len(vals) > 1:
                 r.add_qa("Gradient conflict", "WARN", f"different grades read in {fmt_chainage(a)}..{fmt_chainage(b)}: "
                          + ", ".join(f"{v:g}" for v in sorted(vals)), a)

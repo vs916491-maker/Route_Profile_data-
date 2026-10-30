@@ -7,9 +7,10 @@
   "cant_deficiency_mm": 100,
   "max_cant_mm": 125,
   "cant_ramp_1_in": 720,
-  "curve_extent_for_sec": "arc_plus_half_transitions",
+  "curve_extent_for_sec": "full",
   "ocr": "auto",
   "ocr_dpi": 300,
   "sec_comment_column": true,
-  "row_keywords": {}
+  "row_keywords": {},
+  "gradient_change_at": "pvt"
 }

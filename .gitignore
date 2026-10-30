@@ -13,3 +13,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# portable DWG reader (downloaded, not committed)
+tools/

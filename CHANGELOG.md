@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1 - 2026-10-30
+- .dwg files open without installing anything: portable LibreDWG `dwgread.exe` in `tools/libredwg`
+  (`get_dwg_reader.py` downloads it once). ODA File Converter still used when installed.
+- Works with AutoCAD 2007 DWGs where LibreDWG leaves entity names blank (types recognised by number).
+- settings.json defaults updated (curve extent full, gradient change at PVT).
+
 ## v0.2.0 - 2026-10-30
 Validated on DMRC RS17 Line-7 Phase-3 L-section DWG against RS17_Line7_Route_Input_v1.3.
 - New reading mode for labelled CAD profiles (no ruled band table): PVI/RL, PVC/PVT, TS/SC/CS/ST,

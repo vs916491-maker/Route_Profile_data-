@@ -72,7 +72,11 @@ class App(tk.Tk):
         ttk.Label(sf, text="Curve extent for SEC").grid(row=i, column=0, sticky="w", padx=4)
         self.extent = tk.StringVar(value=self.cfg["curve_extent_for_sec"])
         ttk.Combobox(sf, textvariable=self.extent, width=24, state="readonly",
-                     values=["arc", "arc_plus_half_transitions", "full"]).grid(row=i, column=1, padx=4)
+                     values=["full", "arc_plus_half_transitions", "arc"]).grid(row=i, column=1, padx=4)
+        ttk.Label(sf, text="Gradient changes at").grid(row=i + 3, column=0, sticky="w", padx=4)
+        self.gat = tk.StringVar(value=self.cfg.get("gradient_change_at", "pvt"))
+        ttk.Combobox(sf, textvariable=self.gat, width=24, state="readonly",
+                     values=["pvt", "vpi", "pvc"]).grid(row=i + 3, column=1, padx=4)
         ttk.Label(sf, text="OCR for PDF").grid(row=i + 1, column=0, sticky="w", padx=4)
         self.ocr = tk.StringVar(value=self.cfg["ocr"])
         ttk.Combobox(sf, textvariable=self.ocr, width=24, state="readonly",
@@ -130,6 +134,7 @@ class App(tk.Tk):
         for k, _, kind in FIELDS:
             self.cfg[k] = kind(float(self.vars[k].get()))
         self.cfg["curve_extent_for_sec"] = self.extent.get()
+        self.cfg["gradient_change_at"] = self.gat.get()
         self.cfg["ocr"] = self.ocr.get()
         self.cfg["sec_comment_column"] = self.cmt.get()
         config.save(self.cfg, SETTINGS)

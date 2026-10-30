@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.0 - 2026-10-30
+Validated on DMRC RS17 Line-7 Phase-3 L-section DWG against RS17_Line7_Route_Input_v1.3.
+- New reading mode for labelled CAD profiles (no ruled band table): PVI/RL, PVC/PVT, TS/SC/CS/ST,
+  R/L/LS labels, station CH labels, strip titles; one output file per profile (UP LINE-1, DN LINE-1 ...).
+- Reads the curve table (radius, transition, proposed cant, maximum speed) and uses it for cant and
+  speed limits ("From drawing"), matched to curves by radius and line (ULC = UP, DLC = DN).
+- Curve direction (sign of R) in Curve_Details.
+- Station detection ignores crossovers, buffer stops, track terminations, sidings and curve codes.
+- DXF reader: aligned TEXT anchored correctly; corrupt / far-away coordinates ignored.
+- New settings: gradient_change_at (pvt default, vpi, pvc); curve extent default now full TS->ST
+  (both match the RS17 Line-7 route input conventions).
+- New: `python -m route_importer.compare` - compares a generated route with a reference route file.
+
 ## v0.1.1 - 2026-10-30
 - Replaced .bat launchers (blocked on company laptops) with Python files:
   `Route_Importer.pyw` (double-click, no console), `install_packages.py`, `make_offline_bundle.py`.

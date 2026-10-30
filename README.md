@@ -1,4 +1,4 @@
-# Route Importer  (v0.1.1)
+# Route Importer  (v0.2.0)
 
 Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-input Excel
 (same layout as `RS17_Line7_Route_Input_v1.3.xlsx`, plus extra tabs).
@@ -22,7 +22,8 @@ IDLE / VS Code and press F5.
 Command line: `python -m route_importer.cli a.pdf b.dxf -o out -n BMRCL_ORR`
 
 Output:
-- `<name>_Route_Input.xlsx` – main line
+- `<name>_Route_Input.xlsx` – main line (banded drawings)
+- `<name>_UP_LINE_1_Route_Input.xlsx`, `<name>_DN_LINE_1_…` – one file per profile in a labelled CAD drawing
 - `<name>_Depot_Route_Input.xlsx` – sheets whose title says DEPOT
 
 ## How it reads drawings
@@ -31,6 +32,7 @@ Output:
 | DXF / DWG (main route) | TEXT/MTEXT/block attributes read directly – exact values |
 | PDF with real text | PDF text layer (pypdfium2) |
 | PDF where band text is CAD strokes (like the BMRCL GAD) | offline OCR (RapidOCR) on the band rows, vertical labels read rotated |
+| DXF / DWG *labelled* profiles (no ruled band table, e.g. DMRC Line-7 L-section) | reads the labels: `PVI … RL …`, `PVC/PVT`, `TS/SC/CS/ST`, `R= L=`, `LS=`, station `CH:`, strip titles (UP LINE-1, DN LINE-1 …) and the curve table (cant, maximum speed) |
 
 Band rows are found from the long horizontal lines and named from their labels
 (VERTICAL, HORIZONTAL, RAIL LEVEL, GROUND LEVEL, CHAINAGE, CANT, SPEED; OCR typos tolerated).
@@ -56,11 +58,17 @@ Chainage: `km+m` (`2+816.250`), `CH:`, km or m → m. Cant: mm / m / `Ca=` / `SE
 ## Rules for missing data (settings)
 - Cant: transition length ÷ ramp (default 1 in 720), max 125 mm; no transition → equilibrium cant at line speed.
 - Curve speed: V = √(127·R·(Ca+Cd)/G), Cd 100 mm, G 1500 mm, rounded down to 5 km/h, TS→ST.
-- Curves sheet extent: arc + half of each transition (default), or arc only / full TS→ST.
-- Gradient change point = VPI of the vertical curve.
+- Curves sheet extent: full TS→ST (default, as in the RS17 Line-7 route input), or arc + half transitions / arc only.
+- Gradient change point at each vertical curve: PVT (default, as in the RS17 Line-7 route input), VPI or PVC.
+- Speed and cant: from the drawing's curve table when there is one (marked "From drawing"), otherwise calculated.
 - Tunnels are not on GAD drawings – fill manually.
 
 ## Versions
 See `CHANGELOG.md`. Releases are tagged (`v0.1.0`, ...). Download a tagged version from GitHub → Releases/Tags → *Download ZIP*.
 
 **Do not commit customer drawings or generated Excel files** — this repository is public; `.gitignore` blocks them.
+
+## Check against an existing route file
+`python -m route_importer.compare generated.xlsx reference.xlsx --from_m 28400 --to_m 53500 -o comparison.xlsx`
+Compares stations, gradient along the route, curves (radius, extent, curve-resistance work) and speed limits,
+and writes a report workbook.

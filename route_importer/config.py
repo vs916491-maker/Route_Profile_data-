@@ -15,7 +15,9 @@ DEFAULTS = {
     "max_cant_mm": 125,
     "cant_ramp_1_in": 720,         # default run-out ramp when the drawing gives only transition length
     # curves for SEC: 'arc' | 'arc_plus_half_transitions' | 'full' (TS..ST)
-    "curve_extent_for_sec": "arc_plus_half_transitions",
+    "curve_extent_for_sec": "full",
+    # gradient change point at each vertical curve: 'vpi' | 'pvt' | 'pvc'
+    "gradient_change_at": "pvt",
     # reading
     "ocr": "auto",                 # auto | always | never
     "ocr_dpi": 300,

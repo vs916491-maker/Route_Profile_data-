@@ -152,7 +152,16 @@ def build_route(name: str, datas: list[SheetData], sheets, cfg: dict,
 
     # -------------------------------------------------------- stations
     if with_stations:
-        st, loose = find_stations(sheets)
+        given = [dict(x) for d in datas if d.ok for x in d.stations]
+        if given:     # stations read from the profile itself (CAD profiles)
+            given.sort(key=lambda x: x["ch"])
+            st, loose = [], []
+            for x in given:
+                if st and abs(x["ch"] - st[-1]["ch"]) < 2:
+                    continue
+                st.append(x)
+        else:
+            st, loose = find_stations(sheets)
         for i, s in enumerate(st):
             term = i == 0 or i == len(st) - 1
             s["dwell"] = cfg["terminal_dwell_s"] if term else cfg["dwell_s"]
@@ -193,12 +202,16 @@ def _build_vertical(r: Route, good, cfg):
     vcs = [dict(v) for d in good for v in d.vcurves]
     vcs = _dedupe(vcs, lambda v: (v["start"] + v["end"]) / 2, 1.0, _complete_first)
     for v in vcs:
-        v["vpi"] = round((v["start"] + v["end"]) / 2, 3)
+        v["vpi"] = round(v.get("vpi") or (v["start"] + v["end"]) / 2, 3)
         v.setdefault("src_all", v["src"])
     obs = [dict(g) for d in good for g in d.grades]
     obs = _dedupe(obs, lambda g: g["ch"], 8.0,
                   lambda a, b: a if a["conf"] >= b["conf"] else b)
-    vpis = [v["vpi"] for v in vcs]
+    # where the gradient steps from one grade to the next:
+    #   vpi = middle of the vertical curve (equal-area step), pvt = end of the curve
+    #   (start of the next tangent), pvc = start of the curve
+    at = cfg.get("gradient_change_at", "vpi")
+    vpis = [v["end"] if at == "pvt" else v["start"] if at == "pvc" else v["vpi"] for v in vcs]
 
     # break points: VPIs, plus explicit marks where two different grades meet without a curve
     breaks = sorted(vpis)
@@ -351,6 +364,9 @@ def _build_horizontal(r: Route, good, cfg):
         # ---- speed
         v = curve_speed_limit(a["R"], c_mm, Cd, G)
         v_lim = min(vline, math.floor(v / step) * step)
+        v_src = "Calculated"
+        if a.get("vmax"):
+            v_lim, v_src = a["vmax"], f"From drawing ({a.get('vmax_src', '')})"
         ext = cfg["curve_extent_for_sec"]
         if ext == "arc":
             f, t = a["sc"], a["cs"]
@@ -362,7 +378,8 @@ def _build_horizontal(r: Route, good, cfg):
                "arc_L": round(a["cs"] - a["sc"], 3), "L_written": a.get("L"), "TL_in": TLin, "TL_out": TLout,
                "cant_mm": round(c_mm, 1), "ramp_n": round(ramp, 1) if ramp else None, "cant_src": csrc,
                "v_calc": round(v, 1), "v_limit": v_lim, "sec_from": round(f, 3), "sec_to": round(t, 3),
-               "src": a.get("src_all", a["src"]), "partial": a.get("partial", False)}
+               "src": a.get("src_all", a["src"]), "partial": a.get("partial", False),
+               "v_src": v_src, "curve_no": a.get("curve_no", ""), "dir": a.get("dir", "")}
         r.curves.append(rec)
         r.cant.append({"ts": ts, "sc": a["sc"], "cs": a["cs"], "st": st, "R": a["R"], "cant_mm": rec["cant_mm"],
                        "ramp_n": rec["ramp_n"],
@@ -404,14 +421,19 @@ def _build_speeds(r: Route, good, cfg):
         if act:
             v = min(z[2] for z in act)
             c = min(act, key=lambda z: z[2])[3]
-            cmt = f"Calculated: R={c['R']:g} m, cant {c['cant_mm']:g} mm, deficiency {cfg['cant_deficiency_mm']} mm"
+            if c.get("v_src", "Calculated") != "Calculated":
+                cmt = f"{c['v_src']}: R={c['R']:g} m"
+            else:
+                cmt = f"Calculated: R={c['R']:g} m, cant {c['cant_mm']:g} mm, deficiency {cfg['cant_deficiency_mm']} mm"
         else:
             v, cmt = vline, "Line speed (setting)"
         pts.append({"from": round(a, 3), "kmh": v, "comment": cmt})
     r.speeds = _compress(pts)
     if zones:
-        r.add_qa("Speed limits", "INFO", f"{len(zones)} curve speed restrictions calculated "
-                 f"(V = sqrt(127 R (Ca+Cd) / G), G={cfg['cant_gauge_mm']} mm) - marked 'Calculated'")
+        nd = sum(1 for z in zones if z[3].get("v_src", "Calculated") != "Calculated")
+        r.add_qa("Speed limits", "INFO", f"{len(zones)} curve speed restrictions: {nd} from the drawing's curve table, "
+                 f"{len(zones) - nd} calculated with V = sqrt(127 R (Ca+Cd) / G), G={cfg['cant_gauge_mm']} mm "
+                 "(marked 'Calculated')")
 
 
 def _compress(pts):

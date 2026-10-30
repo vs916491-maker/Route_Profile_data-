@@ -439,11 +439,18 @@ def _sheets_from_doc(doc, path, log) -> list[Sheet]:
                     ins = e.dxf.insert
                     h = float((e.dxf.char_height if t == "MTEXT" else e.dxf.height) or 1.0)
                     rot = float(e.dxf.get("rotation", 0) or 0)
-                    # approximate centre: shift half the text length along the rotation
+                    # approximate centre: shift along the rotation from the anchor point
                     L = 0.6 * h * len(s)
                     import math
                     c, sn = math.cos(math.radians(rot)), math.sin(math.radians(rot))
-                    cx, cy = ins.x + c * L / 2 - sn * h / 2, ins.y + sn * L / 2 + c * h / 2
+                    along, up = L / 2, h / 2          # left / baseline anchor
+                    if t == "TEXT":
+                        ha, va = e.dxf.get("halign", 0), e.dxf.get("valign", 0)
+                        if (ha or va) and e.dxf.hasattr("align_point"):
+                            ins = e.dxf.align_point
+                            along = {1: 0.0, 2: -L / 2, 4: 0.0}.get(ha, L / 2)
+                            up = {1: h / 2, 2: 0.0, 3: -h / 2}.get(va, h / 2 if ha != 4 else 0.0)
+                    cx, cy = ins.x + c * along - sn * up, ins.y + sn * along + c * up
                     if t == "MTEXT":
                         cx, cy = ins.x, ins.y
                     for part in re.split(r"\s{2,}", s):
@@ -457,13 +464,20 @@ def _sheets_from_doc(doc, path, log) -> list[Sheet]:
                     segs += [(p[0], p[1], q[0], q[1]) for p, q in zip(pts, pts[1:])]
             except Exception:
                 continue
+        # drop corrupt / absurd coordinates (seen in real drawings) before measuring extents
+        import math as _m
+        ok = lambda *v: all(_m.isfinite(a) and abs(a) < 1e9 for a in v)
+        items = [it for it in items if ok(it.x, it.y)]
+        segs = [sg for sg in segs if ok(*sg)]
         if not items:
             continue
-        ys = [it.y for it in items] + [s[1] for s in segs]
-        xs = [it.x for it in items] + [s[0] for s in segs]
-        ymax, ymin = max(ys), min(ys)
-        xmin, xmax = min(xs), max(xs)
-        W, H = xmax - xmin, ymax - ymin
+        ys = np.array([it.y for it in items] + [sg[1] for sg in segs])
+        xs = np.array([it.x for it in items] + [sg[0] for sg in segs])
+        ymax, ymin = float(ys.max()), float(ys.min())
+        xmin, xmax = float(xs.min()), float(xs.max())
+        # size used for relative thresholds: ignore a few stray far-away objects
+        W = float(np.percentile(xs, 99.5) - np.percentile(xs, 0.5)) or (xmax - xmin)
+        H = float(np.percentile(ys, 99.5) - np.percentile(ys, 0.5)) or (ymax - ymin)
         for it in items:                       # flip to y-down, origin top-left
             it.x, it.y = it.x - xmin, ymax - it.y
         hl = []

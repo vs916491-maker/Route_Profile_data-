@@ -21,7 +21,13 @@ DEFAULTS = {
     # CAD drawings with several profiles: 'single' = one SEC route (direction below,
     # branches joined in chainage order) | 'separate' = one file per profile
     "cad_output": "single",
-    "cad_direction": "UP",
+    "cad_direction": "DN",
+    # route through several drawings: stations in order, '>' or one per line;
+    # 'NAME = 12345.6' gives a chainage the drawings do not show. Empty = whole drawing(s).
+    "route_stations": "",
+    # other names the drawings use for a station
+    "station_aliases": {"MUKUNDPUR": ["MAJLIS PARK"], "MUNKUNDPUR": ["MAJLIS PARK"],
+                        "N.S.PLACE": ["NETAJI SUBHASH PLACE", "NETAJI SUBASH", "NETAJI SUBHASH"]},
     # reading
     "ocr": "auto",                 # auto | always | never
     "ocr_dpi": 300,

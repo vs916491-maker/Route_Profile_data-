@@ -6,7 +6,8 @@ import re
 
 from . import excel_out
 from .bands import interpret
-from .cadprofile import chain_profiles, interpret_sheet as interpret_cad
+from .cadlabels import assemble, interpret_sheet as interpret_labels, parse_route, transfer_stations
+from .cadprofile import chain_profiles
 from .merge import build_route
 from .sources import read_any
 
@@ -21,30 +22,46 @@ def run(files: list[str], out_dir: str, project: str, cfg: dict, log=print, shee
                 log(f"  ERROR reading {os.path.basename(f)}: {e}")
     outs = []
     jobs = []
-    # CAD profiles without a ruled band table (labelled PVI / TS / SC ... texts):
-    # every profile strip becomes its own route file, named after its title
-    banded = []
+    # CAD profiles without a ruled band table (labelled PVI / TS / SC ... texts)
+    banded, profs_all = [], []
     for s in sheets:
         if s.band_rows or not s.source.lower().endswith((".dxf", ".dwg")):
             banded.append(s)
             continue
+        if len(s.items) < 200:          # title-block layouts etc.
+            continue
         log(f"{s.label}: no band table - reading as labelled CAD profile")
-        profs = interpret_cad(s, log)
-        if cfg.get("cad_output", "single") == "single":
-            dirn = cfg.get("cad_direction", "UP")
-            joined = chain_profiles(profs, dirn)
+        profs_all += interpret_labels(s, log)
+    if profs_all:
+        transfer_stations(profs_all, log)
+        route = parse_route(cfg.get("route_stations", ""))
+        dirn = cfg.get("cad_direction", "DN")
+        aliases = {k.upper(): [x.upper() for x in v] for k, v in (cfg.get("station_aliases") or {}).items()}
+        if route:
+            joined, notes = assemble(profs_all, dirn, route, aliases, log)
+            if joined is None:
+                log("  route not built: " + "; ".join(notes))
+            else:
+                log(f"  single SEC route ({dirn} line): {joined.info[0]}")
+                for n in notes:
+                    log("  note: " + n)
+                jobs.append((f"_{dirn}", [joined], True))
+        elif cfg.get("cad_output", "single") == "single":
+            joined = chain_profiles(profs_all, dirn)
             if joined is None:
                 log(f"  no {dirn} profile found - writing every profile separately")
+                for d in profs_all:
+                    jobs.append(("_" + re.sub(r"[^A-Za-z0-9]+", "_", d.sheet.name).strip("_"), [d], not d.sheet.is_depot))
             else:
                 log(f"  single SEC route ({dirn}): {joined.info[0]}")
-                left = [d.sheet.name for d in profs if d.sheet.name not in joined.sheet.name]
+                left = [d.sheet.name for d in profs_all if d.sheet.name not in joined.sheet.name]
                 if left:
                     log("  left out: " + ", ".join(left) + "  (choose 'separate' output to get them)")
                 jobs.append((f"_{dirn}", [joined], True))
-                continue
-        for d in profs:
-            tag = "_" + re.sub(r"[^A-Za-z0-9]+", "_", d.sheet.name).strip("_")
-            jobs.append((tag, [d], not d.sheet.is_depot))
+        else:
+            for d in profs_all:
+                tag = "_" + re.sub(r"[^A-Za-z0-9]+", "_", d.sheet.name).strip("_")
+                jobs.append((tag, [d], not d.sheet.is_depot))
     sheets = banded
     main = [s for s in sheets if not s.is_depot]
     depot = [s for s in sheets if s.is_depot]

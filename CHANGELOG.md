@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.4.0 - 2026-10-30
+- **Route through several drawings**: give the stations of the line in running order (new "Route to build"
+  box, Load/Save list, `route_stations` setting) and the tool builds ONE SEC file over all drawings on the
+  chosen line (default DN). Validated on DMRC RS17 Line-7 ring Mukundpur - Lajpat Nagar - Maujpur -
+  Mukundpur from 5 L-section DWGs against RS17_Line7_Route_Input_v1.3: 44/44 stations, 153/157 curves
+  (DN), curve work 0.98, ring closes in level within 1.7 m (DN) / 0.5 m (UP).
+- Stations matched by name with aliases; `NAME = chainage` for stations not in the drawings (ring closure).
+- Branches avoided: a profile with stations not on the route is not used (by name AND position, so
+  Shiv Vihar is not mistaken for Sonia Vihar).
+- Sheet breaks: grade bridged from the last known grade to the next one through the PVI levels shown
+  anywhere in the drawing ("Calculated", QA WARN).
+- Junction stations carried between drawings when the same PVI levels appear in both.
+- Unmarked profile in a drawing that shows only one line = that line.
+- Grade for a short stretch cut by a vertical curve end / route end = the grade covering most of it
+  (no more "no gradient" FAIL there).
+- **Tunnels sheet filled from the structure marks** of CAD drawings (START/END OF U/G RAMP, C&C, TBM,
+  ELEVATED RAMP, VIADUCT with their chainage); U/G ramps count as tunnel; a tunnel whose end the drawings
+  do not show is cut at the end of that drawing with a QA WARN. Compare tool reports tunnel overlap.
+- CLI: `-r route_list.txt -d DN`.
+- Labelled profiles: split "R x" / "Lc y" texts, PVI written as "CHAINAGE= ... ELEVATION= ...",
+  BVCS/EVCS marks, label strips found by position fit when there are no chainage tick rows.
+
 ## v0.3.0 - 2026-10-30
 - One SEC input file per run for CAD drawings with several profiles (setting "CAD output" = single,
   default): the chosen direction (UP/DN) is joined in chainage order - a profile starting inside the

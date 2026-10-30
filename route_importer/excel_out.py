@@ -87,7 +87,8 @@ def write(route: Route, path: str, cfg: dict, files: list[str]):
         f"V = sqrt(127 x R x (Ca + Cd) / G), Cd = {cfg['cant_deficiency_mm']} mm, G = {cfg['cant_gauge_mm']} mm,",
         f"  rounded down to {cfg['speed_round_down_kmh']} km/h, applied from TS to ST. Marked 'Calculated'.",
         f"  Dwell {cfg['dwell_s']} s; terminals {cfg['terminal_dwell_s']} s.",
-        "  Tunnels: not read from GAD drawings - enter underground sections manually if any.",
+        "  Tunnels: CAD drawings - from START/END OF U/G RAMP, C&C, TBM, ELEVATED RAMP marks (see QA); "
+        "PDF band drawings - not read, enter underground sections manually.",
         "",
         "Import: Route tab -> Import Excel / CSV -> this file.",
     ]

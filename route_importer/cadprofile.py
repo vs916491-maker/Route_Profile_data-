@@ -25,16 +25,22 @@ from .bands import Calib, Mark, SheetData
 from .sources import Sheet
 
 _TICK = re.compile(r"^\s*(-?\d{1,3})\s*\+\s*(\d{3})\s*$")
-_CH = r"(-?\d{1,3}\s*\+\s*\d{3}(?:\.\d+)?|\d{3,6}\.\d+)"
-_PVI = re.compile(r"^\s*PVI\s*[:=]?\s*" + _CH, re.I)
-_PVCT = re.compile(r"^\s*(PVC|PVT|BVC|EVC)\s*[:=]?\s*" + _CH, re.I)
+_CH = r"(-?\s*\d{1,3}\s*\+\s*\d{3}(?:\.\d+)?|\(?-?\)?\s*\d{2,6}\.\d+)"
+_PVI = re.compile(r"^\s*(?:PVI|VPI)\s*[:=]?\s*" + _CH, re.I)
+# PVI with its level in one text: 'R=2487.968 LVC:83.750 CHAINAGE=4365.5770 ELEVATION=192.2248',
+# 'CH:11030.754 ELEV:221.721'
+_PVI_COMBO = re.compile(r"(?:CHAINAGE|\bCH)\s*[:=]\s*" + _CH + r"\s*,?\s*ELEV(?:ATION)?\s*[:=]\s*(\d{1,4}\.\d+)", re.I)
+_PVCT = re.compile(r"^\s*(PVC|PVT|BVCS|EVCS|BVC|EVC)\s*[:=]?\s*" + _CH, re.I)
+# vertical-curve length / radius in its many spellings
+_VCLR = [re.compile(r"(?:LVC|VCL|L)\s*[:=]?\s*(\d+(?:\.\d+)?)\s*M?\s*,?\s*R\s*[:=]?\s*(-?\d+(?:\.\d+)?)", re.I),
+         re.compile(r"\bR\s*[:=]?\s*(-?\d+(?:\.\d+)?)\s*M?\s*,?\s*(?:LVC|VCL)\s*[:=]?\s*(\d+(?:\.\d+)?)", re.I)]
 _RL = re.compile(r"^\s*(?:RL|R\.L\.?|ELEV(?:ATION)?|EL)\s*[:=]?\s*(\d{1,4}\.\d+)\s*$", re.I)
 _HPT = re.compile(r"^\s*(TS|SC|CS|ST|SS|PC|PT|PCC|PRC|BC|EC|TC|CT)\s*[:=]?\s*" + _CH, re.I)
 _HR = re.compile(r"\bR\s*=\s*(-?\d+(?:\.\d+)?)\s*M?\b", re.I)
 _HL = re.compile(r"\bL\s*=\s*(\d+(?:\.\d+)?)", re.I)
-_LS = re.compile(r"^\s*(?:LS|TL|L\.S\.?)\s*=\s*(\d+(?:\.\d+)?)", re.I)
+_LS = re.compile(r"^\s*(?:LS|TL|L\.S\.?)\s*[=:]?\s*(\d+(?:\.\d+)?)", re.I)
 _VC = re.compile(r"^\s*L\s*=?\s*(\d+(?:\.\d+)?)\s*M?\s*,?\s*R\s*=?\s*(-?\d+(?:\.\d+)?)\s*$", re.I)
-_G = re.compile(r"G\s*=?\s*(-?\d+(?:\.\d+)?)\s*%", re.I)
+_G = re.compile(r"(?:G|GR\.?|GRADE)\s*[:=]?\s*(-?\d+(?:\.\d+)?)\s*%", re.I)
 _STCH = re.compile(r"^\s*CH\s*[:.]?\s*" + _CH + r"\s*(UP|DN|DOWN)?\s*$", re.I)
 _LEVEL = re.compile(r"^\s*(\d{2,4}\.\d{2,3})\s*$")
 _NOT_STATION = re.compile(r"X-?OVER|CROSS\s*OVER|SRJ|TURN\s*OUT|BUFFER|TERMINATION|SIDING|RAKE|BOC|SCISSOR|"
@@ -44,7 +50,7 @@ _TITLE = re.compile(r"\b(UP|DN|DOWN|SIDING|DEPOT|STABLING|LOOP|SHUNT|TEST|INSPEC
 
 
 def ch_value(s: str) -> float | None:
-    s = s.replace(" ", "")
+    s = s.replace(" ", "").replace("(-)", "-").replace("(", "").replace(")", "")
     if "+" in s:
         km, m = s.split("+", 1)
         try:
@@ -145,7 +151,8 @@ def assign(sheet: Sheet, strips: list[Strip], reach: float = 320.0):
 TABLE_ROWS = {
     "no": r"CURVE\s*NO", "radius": r"^RADIUS", "tl": r"TRANSITION\s*LENGTH",
     "cant": r"PROPOSED\s*CANT|^CANT\b|SUPER\s*ELEV", "cd": r"CANT\s*DEFICIENCY",
-    "vmax": r"MAX(IMUM)?\.?\s*SPEED|SPEED\s*LIMIT|PERMISSIBLE\s*SPEED",
+    "vmax": r"MAX(IMUM)?\.?\s*SPEED|SPEED\s*LIMIT|PERMISSIBLE\s*SPEED|PROPOSED\s*SPEED",
+    "lc": r"CIRCULAR\s*CURVE\s*LENGTH|CURCULAR\s*CURVE\s*LENGTH",
 }
 
 
@@ -192,7 +199,20 @@ def read_curve_tables(sheet: Sheet) -> list[dict]:
 
 
 # ------------------------------------------------------------ strip -> data
-def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict]) -> SheetData:
+def vc_lr(text: str):
+    """(length, radius) of a vertical curve from 'L=52.302 R 3000', 'LVC = 38.466 R = -2500',
+    'R=3850.000m VCL=25.025m', 'R=2487.968 LVC:83.750 ...'."""
+    for i, rx in enumerate(_VCLR):
+        m = rx.search(text)
+        if m:
+            a, b = float(m.group(1)), float(m.group(2))
+            L, R = (a, b) if i == 0 else (b, a)
+            if 1 <= L <= 1000 and abs(R) >= 100:
+                return L, R
+    return None
+
+
+def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict], radius_pool=None) -> SheetData:
     d = SheetData(sheet)
     d.sheet = Sheet(sheet.source, s.title, sheet.width, sheet.height)   # label per strip
     d.sheet.is_depot = s.kind != "main"
@@ -200,6 +220,8 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict]) -> SheetData:
     lo, hi = sorted((cal(s.x0), cal(s.x1)))
     d.ch_min, d.ch_max = lo, hi
     its = s.items
+    hs = [min(it.w, it.h) for it in its if (_PVI.match(it.text) or _HPT.match(it.text)) and min(it.w, it.h) > 0.3]
+    h0 = float(np.median(hs)) if hs else 3.0          # label text height: all distances scale with it
 
     def near(it, pool, dx, dy):
         c = [o for o in pool if o is not it and abs(o.x - it.x) <= dx and abs(o.y - it.y) <= dy]
@@ -213,25 +235,37 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict]) -> SheetData:
         if not m:
             continue
         ch = ch_value(m.group(1))
-        r = near(it, rls, 12, 25)
+        r = near(it, rls, max(12, 5 * h0), max(25, 9 * h0))
         if ch is None or r is None:
             continue
         pvis.append({"ch": ch, "z": float(_RL.match(r.text).group(1)), "it": it})
+    vc_inline = []
+    for it in its:
+        m = _PVI_COMBO.search(it.text)
+        if m and not _PVI.match(it.text):
+            ch = ch_value(m.group(1))
+            if ch is not None:
+                pvis.append({"ch": ch, "z": float(m.group(2)), "it": it})
+                lr = vc_lr(it.text)
+                if lr:
+                    vc_inline.append((ch, lr[0], lr[1], it))
     pvis = sorted({round(p["ch"], 3): p for p in pvis}.values(), key=lambda p: p["ch"])
     pvct = []
     for it in its:
         m = _PVCT.match(it.text)
         if m:
-            kind = {"BVC": "PVC", "EVC": "PVT"}.get(m.group(1).upper(), m.group(1).upper())
+            kind = {"BVC": "PVC", "EVC": "PVT", "BVCS": "PVC", "EVCS": "PVT"}.get(m.group(1).upper(), m.group(1).upper())
             v = ch_value(m.group(2))
             if v is not None:
                 pvct.append((v, kind))
     pvct = sorted(set(pvct))
-    vcs_txt = []
+    vcs_txt = list(vc_inline)
     for it in its:
-        m = _VC.match(it.text)
-        if m:
-            vcs_txt.append((cal(it.x), float(m.group(1)), float(m.group(2)), it))
+        if _PVI_COMBO.search(it.text):
+            continue
+        lr = vc_lr(it.text)
+        if lr:
+            vcs_txt.append((cal(it.x), lr[0], lr[1], it))
     gtx = []
     for it in its:
         m = _G.search(it.text)
@@ -248,7 +282,8 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict]) -> SheetData:
             d.warnings.append(f"grade {a['ch']:.1f}..{b['ch']:.1f}: from PVI levels {g:.3f} permil, "
                               f"written {', '.join(f'{w:.2f}' for w in written)} permil")
         d.grades.append({"ch": mid, "permil": round(g, 3), "conf": conf, "raw": f"PVI levels {a['z']:.3f}->{b['z']:.3f}",
-                         "from": a["ch"], "to": b["ch"], "L": None, "src": d.sheet.label})
+                         "from": a["ch"], "to": b["ch"], "L": None, "src": d.sheet.label,
+                         "z_from": a["z"], "z_to": b["z"]})
         d.items_used.append(("vertical", a["it"], f"PVI {a['ch']:.3f} RL {a['z']:.3f}", a["ch"]))
     if pvis:
         d.items_used.append(("vertical", pvis[-1]["it"], f"PVI {pvis[-1]['ch']:.3f} RL {pvis[-1]['z']:.3f}", pvis[-1]["ch"]))
@@ -256,7 +291,7 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict]) -> SheetData:
     for p in pvis[1:-1] if len(pvis) > 2 else []:
         before = [c for c, k in pvct if k == "PVC" and p["ch"] - 400 < c <= p["ch"]]
         after = [c for c, k in pvct if k == "PVT" and p["ch"] <= c < p["ch"] + 400]
-        txt = [v for v in vcs_txt if abs(v[0] - p["ch"]) < 60]
+        txt = [v for v in vcs_txt if abs(v[0] - p["ch"]) < max(60, 20 * h0)]
         L = R = None
         if txt:
             t = min(txt, key=lambda v: abs(v[0] - p["ch"]))
@@ -287,11 +322,11 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict]) -> SheetData:
     rtx = []
     for it in its:
         m = _HR.search(it.text)
-        if m and band_y is not None and abs(it.y - band_y) < 40 and not _HPT.match(it.text):
+        if m and band_y is not None and abs(it.y - band_y) < max(40, 14 * h0) and not _HPT.match(it.text):
             lm = _HL.search(it.text)
             rtx.append((cal(it.x), float(m.group(1)), float(lm.group(1)) if lm else None, it))
     lstx = [(cal(it.x), float(_LS.match(it.text).group(1))) for it in its
-            if _LS.match(it.text) and band_y is not None and abs(it.y - band_y) < 40]
+            if _LS.match(it.text) and band_y is not None and abs(it.y - band_y) < max(40, 14 * h0)]
     arcs = []
     starts = {"SC", "PC", "BC", "TC", "PCC", "PRC"}
     ends = {"CS", "PT", "EC", "CT", "PCC", "PRC", "SS"}
@@ -306,12 +341,22 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict]) -> SheetData:
         if not cand:
             cand = [min(rtx, key=lambda r: abs(r[0] - (sc + cs) / 2))] if rtx else []
             if not cand or abs(cand[0][0] - (sc + cs) / 2) > (cs - sc) / 2 + 40:
-                d.warnings.append(f"curve {sc:.3f}..{cs:.3f}: no radius text found")
-                continue
+                exact = [p for p in (radius_pool or []) if abs(p[1] - (cs - sc)) <= 0.02]
+                if exact:     # radius from a curve table / plan label with the same curve length
+                    cand = [((sc + cs) / 2, exact[0][0], exact[0][1], None)]
+                else:
+                    d.warnings.append(f"curve {sc:.3f}..{cs:.3f}: no radius text found")
+                    continue
         r = min(cand, key=lambda r: abs(r[0] - (sc + cs) / 2))
-        arcs.append({"R": abs(r[1]), "dir": "left" if r[1] < 0 else "right", "L": r[2], "sc": round(sc, 3),
-                     "cs": round(cs, 3), "how": "TS/SC/CS/ST", "partial": False, "src": d.sheet.label})
-        d.items_used.append(("horizontal", r[3], f"R={r[1]:g}", sc))
+        Rv, Lv, how = r[1], r[2], "TS/SC/CS/ST"
+        exact = [p for p in (radius_pool or []) if abs(p[1] - (cs - sc)) <= 0.02]
+        if exact and (not Lv or abs(Lv - (cs - sc)) > 0.05):
+            near_r = min(exact, key=lambda p: abs(abs(p[0]) - abs(Rv)))
+            Rv, Lv, how = near_r[0], near_r[1], "radius by curve length"
+        arcs.append({"R": abs(Rv), "dir": "left" if Rv < 0 else "right", "L": Lv, "sc": round(sc, 3),
+                     "cs": round(cs, 3), "how": how, "partial": False, "src": d.sheet.label})
+        if r[3] is not None:
+            d.items_used.append(("horizontal", r[3], f"R={Rv:g}", sc))
     d.arcs = arcs
     # transitions: TS->SC, CS->ST, CS->SS, SS->SC
     for (c1, k1, _), (c2, k2, _) in zip(pts, pts[1:]):
@@ -327,11 +372,15 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict]) -> SheetData:
 
     # curve table -> cant and speed for each arc (matched by radius, in chainage order)
     pref = None
-    if s.kind == "main":
-        pref = "U" if re.search(r"\bUP\b", s.title, re.I) else "D"
+    if s.kind == "main" and re.search(r"\bUP\b", s.title, re.I):
+        pref = "U"
+    elif s.kind == "main" and re.search(r"\b(DN|DOWN)\b", s.title, re.I):
+        pref = "D"
     if tables and arcs:
         pool = [t for t in tables if isinstance(t.get("radius"), float)
                 and (pref is None or str(t["no"]).upper().startswith(pref))]
+        if not pool:
+            pool = [t for t in tables if isinstance(t.get("radius"), float)]
         used = set()
         for a in arcs:
             m = [t for t in pool if id(t) not in used and abs(t["radius"] - a["R"]) <= 0.05]
@@ -420,7 +469,8 @@ def chain_profiles(datas: list[SheetData], direction: str = "UP") -> SheetData |
     A profile that starts inside the previous one is a branch: the route follows the
     previous profile up to the branch start and the branch from there on
     (e.g. UP LINE-1 to 53+000, then UP LINE-2 to Shiv Vihar)."""
-    parts = [d for d in datas if d.ok and not d.sheet.is_depot and direction_of(d.sheet.name) == direction]
+    parts = [d for d in datas if d.ok and not d.sheet.is_depot and
+             (getattr(d, "direction", None) or direction_of(d.sheet.name)) == direction]
     if not parts:
         return None
     parts.sort(key=lambda d: (d.ch_min, -d.ch_max))

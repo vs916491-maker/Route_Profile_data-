@@ -1,21 +1,24 @@
-# Route Importer  (v0.1.0)
+# Route Importer  (v0.1.1)
 
 Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-input Excel
 (same layout as `RS17_Line7_Route_Input_v1.3.xlsx`, plus extra tabs).
 
 ## Install (once)
-1. Python 3.10+ on the laptop.
-2. Double-click `install.bat`.
-   - No internet on the laptop? On any PC with internet run `make_offline_bundle.bat`,
-     copy the whole folder (with `wheels`) to the laptop, then run `install.bat`.
+1. Python 3.9+ on the laptop (python.org installer, with "tcl/tk and IDLE" ticked).
+2. Double-click `install_packages.py` (installs for your user only, no admin rights).
+   - No internet / pip blocked? On any PC with internet run `make_offline_bundle.py`,
+     copy the whole folder (with `wheels`) to the laptop, then run `install_packages.py`.
 3. For `.dwg` files: install the free **ODA File Converter** (opendesign.com). Without it,
    save the DWG as DXF in any CAD viewer and load the DXF.
 
-Everything then runs offline — no internet, no cloud.
+Everything then runs offline — no internet, no cloud. No `.bat` files are used
+(they are often blocked on company laptops).
 
 ## Use
-`run_route_importer.bat` → add all drawings of one section (many files and pages are fine) →
+Double-click `Route_Importer.pyw` → add all drawings of one section (many files and pages are fine) →
 check settings → **Create route Excel**.
+If double-click does not start Python: right-click → *Open with* → Python, or open the file in
+IDLE / VS Code and press F5.
 Command line: `python -m route_importer.cli a.pdf b.dxf -o out -n BMRCL_ORR`
 
 Output:

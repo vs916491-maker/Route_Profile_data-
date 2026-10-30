@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1 - 2026-10-30
+- Replaced .bat launchers (blocked on company laptops) with Python files:
+  `Route_Importer.pyw` (double-click, no console), `install_packages.py`, `make_offline_bundle.py`.
+- Launcher checks for missing packages / tkinter and shows a clear message; errors saved to a log file.
+- Packages install with `--user` (no admin rights).
+
 ## v0.1.0 - 2026-10-30
 First version.
 - Reads route profile bands from DXF/DWG (CAD text), PDF text layer, or offline OCR (RapidOCR) for stroke text.

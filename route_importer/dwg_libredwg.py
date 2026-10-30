@@ -61,9 +61,20 @@ def read_doc(dwg_path: str, exe: str, log=print, timeout: int = 1200):
         log("  reading DWG with LibreDWG (can take a minute for big drawings) ...")
         env = dict(os.environ)
         env["PATH"] = os.path.dirname(exe) + os.pathsep + env.get("PATH", "")   # its DLLs
-        r = subprocess.run([exe, "-O", "JSON", "-o", out, dwg_path], capture_output=True, text=True,
-                           timeout=timeout, env=env,
-                           creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        try:
+            r = subprocess.run([exe, "-O", "JSON", "-o", out, dwg_path], capture_output=True, text=True,
+                               timeout=timeout, env=env,
+                               creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        except OSError as e:
+            if getattr(e, "winerror", None) in (4551, 1260, 5) or isinstance(e, PermissionError):
+                raise RuntimeError(
+                    "Windows Application Control blocked dwgread.exe (company security policy), "
+                    "so this laptop cannot open .dwg files directly. Options: "
+                    "(1) open the DWG in AutoCAD / AutoCAD LT / BricsCAD / DraftSight / LibreCAD and "
+                    "'Save As' DXF, then load the .dxf here - DXF needs no converter; "
+                    "(2) ask IT to allow " + exe + " (LibreDWG 0.13.3, open-source DWG reader, "
+                    "no network access); (3) convert on another PC and copy the .dxf over.") from None
+            raise
         if not os.path.isfile(out) or os.path.getsize(out) < 1000:
             raise RuntimeError(f"LibreDWG could not read the DWG: {(r.stderr or r.stdout)[-300:]}")
         data = _load_json(out)

@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.2.2 - 2026-10-30
+- Clear message when Windows Application Control blocks dwgread.exe, with the DXF route and IT option.
+
 ## v0.2.1 - 2026-10-30
 - .dwg files open without installing anything: portable LibreDWG `dwgread.exe` in `tools/libredwg`
   (`get_dwg_reader.py` downloads it once). ODA File Converter still used when installed.

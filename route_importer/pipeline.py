@@ -6,7 +6,7 @@ import re
 
 from . import excel_out
 from .bands import interpret
-from .cadprofile import interpret_sheet as interpret_cad
+from .cadprofile import chain_profiles, interpret_sheet as interpret_cad
 from .merge import build_route
 from .sources import read_any
 
@@ -29,7 +29,20 @@ def run(files: list[str], out_dir: str, project: str, cfg: dict, log=print, shee
             banded.append(s)
             continue
         log(f"{s.label}: no band table - reading as labelled CAD profile")
-        for d in interpret_cad(s, log):
+        profs = interpret_cad(s, log)
+        if cfg.get("cad_output", "single") == "single":
+            dirn = cfg.get("cad_direction", "UP")
+            joined = chain_profiles(profs, dirn)
+            if joined is None:
+                log(f"  no {dirn} profile found - writing every profile separately")
+            else:
+                log(f"  single SEC route ({dirn}): {joined.info[0]}")
+                left = [d.sheet.name for d in profs if d.sheet.name not in joined.sheet.name]
+                if left:
+                    log("  left out: " + ", ".join(left) + "  (choose 'separate' output to get them)")
+                jobs.append((f"_{dirn}", [joined], True))
+                continue
+        for d in profs:
             tag = "_" + re.sub(r"[^A-Za-z0-9]+", "_", d.sheet.name).strip("_")
             jobs.append((tag, [d], not d.sheet.is_depot))
     sheets = banded

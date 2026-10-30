@@ -401,6 +401,66 @@ def interpret_sheet(sheet: Sheet, log=print) -> list[SheetData]:
         d = interpret_strip(sheet, s, tables)
         log(f"  profile '{s.title}': {d.ch_min:.0f}..{d.ch_max:.0f} m, {len(d.grades)} grades, "
             f"{len(d.vcurves)} vertical curves, {len(d.arcs)} curves, {len(d.stations)} stations"
-            + ("" if s.kind == "main" else " (separate output)"))
+            + ("" if s.kind == "main" else " (not a main line)"))
         out.append(d)
+    return out
+
+
+# ------------------------------------------------------- one route per run
+def direction_of(title: str) -> str | None:
+    if re.search(r"\bUP\b", title, re.I):
+        return "UP"
+    if re.search(r"\b(DN|DOWN)\b", title, re.I):
+        return "DN"
+    return None
+
+
+def chain_profiles(datas: list[SheetData], direction: str = "UP") -> SheetData | None:
+    """Join the main profiles of one direction into a single route, in chainage order.
+    A profile that starts inside the previous one is a branch: the route follows the
+    previous profile up to the branch start and the branch from there on
+    (e.g. UP LINE-1 to 53+000, then UP LINE-2 to Shiv Vihar)."""
+    parts = [d for d in datas if d.ok and not d.sheet.is_depot and direction_of(d.sheet.name) == direction]
+    if not parts:
+        return None
+    parts.sort(key=lambda d: (d.ch_min, -d.ch_max))
+    chosen = [parts[0]]
+    for d in parts[1:]:
+        if d.ch_max <= chosen[-1].ch_max + 1 and d.ch_min >= chosen[-1].ch_min:
+            if d.ch_min > chosen[-1].ch_min + 1 or d.ch_max > chosen[-1].ch_max:
+                chosen.append(d)      # branch that ends inside: still the later part of the route
+            continue
+        chosen.append(d)
+    out = SheetData(chosen[0].sheet)
+    out.sheet = Sheet(chosen[0].sheet.source, " + ".join(d.sheet.name for d in chosen),
+                      chosen[0].sheet.width, chosen[0].sheet.height)
+    bounds = []
+    for i, d in enumerate(chosen):
+        lo = d.ch_min if i == 0 else chosen[i].ch_min
+        hi = chosen[i + 1].ch_min if i + 1 < len(chosen) else d.ch_max
+        bounds.append((lo, hi))
+    for d, (lo, hi) in zip(chosen, bounds):
+        last = d is chosen[-1]
+        inside = (lambda c: lo <= c < hi) if not last else (lambda c: lo <= c <= hi)
+        for g in d.grades:
+            f, t = g.get("from"), g.get("to")
+            if f is None or t is None or t <= lo or f >= hi:
+                continue
+            g = dict(g, **{"from": max(f, lo), "to": min(t, hi)})
+            g["ch"] = (g["from"] + g["to"]) / 2
+            out.grades.append(g)
+        out.vcurves += [v for v in d.vcurves if inside(v.get("vpi") or (v["start"] + v["end"]) / 2)]
+        out.arcs += [a for a in d.arcs if inside(a["sc"])]
+        out.transitions += [t for t in d.transitions if inside(t["start"])]
+        out.rail += [(c, z) for c, z in d.rail if inside(c)]
+        out.ground += [(c, z) for c, z in d.ground if inside(c)]
+        out.cant += [c for c in d.cant if inside(c["ch"])]
+        out.speed += [s for s in d.speed if inside(s["ch"])]
+        out.stations += [s for s in d.stations if inside(s["ch"])]
+        out.items_used += [u for u in d.items_used if u[3] is None or inside(u[3])]
+        out.warnings += [f"{d.sheet.name}: {w}" for w in d.warnings]
+    out.ch_min, out.ch_max = bounds[0][0], bounds[-1][1]
+    out.info = ["Route joined in chainage order: " + "; ".join(
+        f"{d.sheet.name} {lo:.0f}..{hi:.0f} m" for d, (lo, hi) in zip(chosen, bounds))]
+    out.ok = True
     return out

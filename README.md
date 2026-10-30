@@ -1,4 +1,4 @@
-# Route Importer  (v0.2.2)
+# Route Importer  (v0.3.0)
 
 Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-input Excel
 (same layout as `RS17_Line7_Route_Input_v1.3.xlsx`, plus extra tabs).
@@ -28,7 +28,10 @@ Command line: `python -m route_importer.cli a.pdf b.dxf -o out -n BMRCL_ORR`
 
 Output:
 - `<name>_Route_Input.xlsx` – main line (banded drawings)
-- `<name>_UP_LINE_1_Route_Input.xlsx`, `<name>_DN_LINE_1_…` – one file per profile in a labelled CAD drawing
+- labelled CAD drawing with several profiles (UP/DN, branches, sidings):
+  - **CAD output = single** (default): one SEC file `<name>_UP_Route_Input.xlsx` – the chosen direction,
+    branches joined in chainage order (e.g. UP LINE-1 to 53+000, then UP LINE-2 to Shiv Vihar); sidings left out
+  - **CAD output = separate**: one file per profile (`<name>_UP_LINE_1_…`, `<name>_DN_LINE_1_…`, sidings …)
 - `<name>_Depot_Route_Input.xlsx` – sheets whose title says DEPOT
 
 ## How it reads drawings

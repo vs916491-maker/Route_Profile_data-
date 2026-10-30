@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.3.0 - 2026-10-30
+- One SEC input file per run for CAD drawings with several profiles (setting "CAD output" = single,
+  default): the chosen direction (UP/DN) is joined in chainage order - a profile starting inside the
+  previous one is treated as a branch (route follows it from its start). Sidings / untitled profiles left out.
+  RS17 Line-7 Phase-3: UP LINE-1 28+300..53+000 + UP LINE-2 53+000..57+500 = Lajpat Nagar -> Shiv Vihar,
+  21 stations, 0 FAIL / 0 WARN.
+- "separate" keeps the previous one-file-per-profile output. GUI: CAD output and Direction selectors.
+- settings.json: line speed 85 km/h (RS17 Line-7).
+
 ## v0.2.2 - 2026-10-30
 - Clear message when Windows Application Control blocks dwgread.exe, with the DXF route and IT option.
 

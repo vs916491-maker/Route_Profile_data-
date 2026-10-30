@@ -251,9 +251,18 @@ def _build_vertical(r: Route, good, cfg):
             # take the grade that covers most of the piece
             ov = [(min(b, g["to"]) - max(a, g["from"]), g) for g in obs
                   if g.get("from") is not None and g.get("to") is not None]
-            ov = [x for x in ov if x[0] > 0.5 * (b - a)]
-            if ov:
-                inside = [max(ov, key=lambda x: x[0])[1]]
+            ov = [x for x in ov if x[0] > 0]
+            big = [x for x in ov if x[0] > 0.5 * (b - a)]
+            n_rail = sum(1 for c, z in rail if a + 5 <= c <= b - 5 and not any(v["start"] <= c <= v["end"] for v in vcs))
+            if big:
+                inside = [max(big, key=lambda x: x[0])[1]]
+            elif n_rail < 2:     # no levels to calculate from (e.g. a vertical curve at a drawing joint)
+                if ov:
+                    inside = [max(ov, key=lambda x: x[0])[1]]
+                else:            # the grade coming in (gradient changes at the PVT)
+                    prev = [g for g in obs if g.get("to") is not None and a - 100 <= g["to"] <= a + 1e-6]
+                    if prev:
+                        inside = [max(prev, key=lambda g: g["to"])]
         if inside:
             vals = {round(g["permil"], 3) for g in inside}
             best = max(inside, key=lambda g: g["conf"])

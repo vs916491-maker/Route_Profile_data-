@@ -229,13 +229,34 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict], radius_pool=None
 
     # ---------------------------------------------------------- vertical
     rls = [it for it in its if _RL.match(it.text)]
+    marks = [it for it in its if _PVI.match(it.text) or _PVCT.match(it.text)]
+
+    # PVC, PVI and PVT often each have their own 'Elev' label beside them, always on the same side:
+    # learn that offset from the PVC / PVT marks and take the PVI's level at the same offset
+    offs = []
+    for m in marks:
+        if _PVI.match(m.text):
+            continue
+        c = [o for o in rls if abs(o.x - m.x) <= max(12, 5 * h0) and abs(o.y - m.y) <= max(25, 9 * h0)]
+        if c:
+            o = min(c, key=lambda o: abs(o.x - m.x) + abs(o.y - m.y))
+            offs.append((o.x - m.x, o.y - m.y))
+    off = (float(np.median([q[0] for q in offs])), float(np.median([q[1] for q in offs]))) if len(offs) >= 3 else None
+
+    def own_level(it, dx, dy):
+        c = [o for o in rls if abs(o.x - it.x) <= dx and abs(o.y - it.y) <= dy]
+        if not c:
+            return None
+        if off is not None:
+            return min(c, key=lambda o: abs(o.x - it.x - off[0]) + abs(o.y - it.y - off[1]))
+        return min(c, key=lambda o: abs(o.x - it.x) + abs(o.y - it.y))
     pvis = []
     for it in its:
         m = _PVI.match(it.text)
         if not m:
             continue
         ch = ch_value(m.group(1))
-        r = near(it, rls, max(12, 5 * h0), max(25, 9 * h0))
+        r = own_level(it, max(12, 5 * h0), max(25, 9 * h0))
         if ch is None or r is None:
             continue
         pvis.append({"ch": ch, "z": float(_RL.match(r.text).group(1)), "it": it})
@@ -288,9 +309,11 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict], radius_pool=None
     if pvis:
         d.items_used.append(("vertical", pvis[-1]["it"], f"PVI {pvis[-1]['ch']:.3f} RL {pvis[-1]['z']:.3f}", pvis[-1]["ch"]))
     # vertical curves: PVC..PVT around each PVI
-    for p in pvis[1:-1] if len(pvis) > 2 else []:
+    for i, p in enumerate(pvis):
         before = [c for c, k in pvct if k == "PVC" and p["ch"] - 400 < c <= p["ch"]]
         after = [c for c, k in pvct if k == "PVT" and p["ch"] <= c < p["ch"] + 400]
+        if (i == 0 or i == len(pvis) - 1) and not (before and after):
+            continue          # first / last PVI of the sheet: only with its PVC and PVT marks
         txt = [v for v in vcs_txt if abs(v[0] - p["ch"]) < max(60, 20 * h0)]
         L = R = None
         if txt:
@@ -304,7 +327,10 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict], radius_pool=None
             how = "PVI +/- L/2"
         else:
             continue
-        if L and abs((en - st) - L) > 0.1 and how == "PVC/PVT":
+        if L and how == "PVC/PVT" and abs((en - st) - L) > max(5.0, 0.2 * L):
+            # the PVC / PVT marks found belong to other curves (e.g. one is on the next sheet)
+            st, en, how = p["ch"] - L / 2, p["ch"] + L / 2, "PVI +/- L/2"
+        elif L and abs((en - st) - L) > 0.1 and how == "PVC/PVT":
             d.warnings.append(f"vertical curve at PVI {p['ch']:.3f}: PVC..PVT {en - st:.3f} m vs written L={L:g}")
         d.vcurves.append({"R": abs(R) if R else None, "CL": L, "start": round(st, 3), "end": round(en, 3),
                           "vpi": round(p["ch"], 3), "how": how, "partial": False, "src": d.sheet.label})
@@ -414,6 +440,50 @@ def interpret_strip(sheet: Sheet, s: Strip, tables: list[dict], radius_pool=None
                 c = cal(it.x)
                 c = round(c / s.step) * s.step if abs(c - round(c / s.step) * s.step) < s.step * 0.3 else round(c, 1)
                 d.rail.append((c, v))
+
+    # ------------------------------------------------ open ends of the profile
+    # the grade before the first / after the last PVI of a sheet (its other PVI is on the next
+    # sheet): from the rail levels shown there, or the grade written there
+    if pvis and d.ch_max is not None:
+        for side in ("start", "end"):
+            p = pvis[0] if side == "start" else pvis[-1]
+            edge = d.ch_min if side == "start" else d.ch_max
+            if abs(edge - p["ch"]) < 20:
+                continue
+            if side == "end":
+                pt = [c for c, k in pvct if k == "PVT" and p["ch"] <= c < p["ch"] + 300]
+                lo_, hi_ = (min(pt) if pt else p["ch"] + 15), edge
+            else:
+                pt = [c for c, k in pvct if k == "PVC" and p["ch"] - 300 < c <= p["ch"]]
+                lo_, hi_ = edge, (max(pt) if pt else p["ch"] - 15)
+            if hi_ - lo_ < 10:
+                continue
+            written = [gv for c, gv, _ in gtx if lo_ - 5 < c < hi_ + 5]
+            pts = [(c, z) for c, z in d.rail if lo_ + 1 <= c <= hi_ - 1]
+            g = how = None
+            if len(pts) >= 3:
+                cs_, zs_ = np.array([q[0] for q in pts]), np.array([q[1] for q in pts])
+                k, b0 = np.polyfit(cs_, zs_, 1)
+                if float(np.abs(zs_ - (k * cs_ + b0)).max()) < 0.03:
+                    g, how = float(k * 1000), "rail levels"
+                    close = [w for w in written if abs(w - g) < 0.5]
+                    if close:
+                        g, how = close[0], "written grade"
+            elif len(written) == 1:
+                g, how = written[0], "written grade"
+            elif pts and pt:      # one or two levels on the short tangent: line through them and the PVI
+                cs_ = np.array([q[0] for q in pts] + [p["ch"]]); zs_ = np.array([q[1] for q in pts] + [p["z"]])
+                k, b0 = np.polyfit(cs_, zs_, 1)
+                if float(np.abs(zs_ - (k * cs_ + b0)).max()) < 0.03 or len(pts) == 1:
+                    g, how = float(k * 1000), "rail levels and PVI level"
+            if g is None:
+                continue
+            a, b = (p["ch"], edge) if side == "end" else (edge, p["ch"])
+            za = p["z"] if side == "end" else p["z"] - g / 1000 * (p["ch"] - edge)
+            d.grades.append({"ch": (a + b) / 2, "permil": round(g, 3), "conf": 0.8,
+                             "raw": f"{side} of sheet after/before PVI {p['ch']:.3f}: {how}", "from": a, "to": b,
+                             "L": None, "src": d.sheet.label, "z_from": za, "z_to": za + g / 1000 * (b - a)})
+        d.grades.sort(key=lambda g: g["from"])
 
     # ---------------------------------------------------------- stations
     for it in its:

@@ -1,0 +1,15 @@
+{
+  "dwell_s": 30,
+  "terminal_dwell_s": 180,
+  "line_speed_kmh": 80,
+  "speed_round_down_kmh": 5,
+  "cant_gauge_mm": 1500,
+  "cant_deficiency_mm": 100,
+  "max_cant_mm": 125,
+  "cant_ramp_1_in": 720,
+  "curve_extent_for_sec": "arc_plus_half_transitions",
+  "ocr": "auto",
+  "ocr_dpi": 300,
+  "sec_comment_column": true,
+  "row_keywords": {}
+}

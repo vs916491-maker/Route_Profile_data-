@@ -1,0 +1,15 @@
+# Customer drawings and generated outputs never go in this repository (it is public)
+*.pdf
+*.dwg
+*.dxf
+*.xlsx
+*.xls
+*.csv
+sample_output/
+wheels/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

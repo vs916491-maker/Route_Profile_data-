@@ -318,7 +318,9 @@ def _build_vertical(r: Route, good, cfg):
                 return s["permil"]
         return None
     for v in vcs:
-        gi, go = grade_at(v["vpi"] - 0.01), grade_at(v["vpi"] + 0.01)
+        # the tangents either side of the curve (not at the VPI: with the change at PVT both
+        # sides of the VPI carry the incoming grade)
+        gi, go = grade_at(v["start"] - 0.5), grade_at(v["end"] + 0.5)
         typ = "" if gi is None or go is None else ("Crest" if gi > go else ("Sag" if gi < go else "-"))
         r.vcurves.append({"vpi": v["vpi"], "start": v["start"], "end": v["end"], "R": v["R"],
                           "L": round(v["end"] - v["start"], 3), "CL": v.get("CL"), "g_in": gi, "g_out": go,

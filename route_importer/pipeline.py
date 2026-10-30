@@ -83,7 +83,16 @@ def run(files: list[str], out_dir: str, project: str, cfg: dict, log=print, shee
             log("  nothing readable - no file written")
             continue
         path = os.path.join(out_dir, f"{project}{label}_Route_Input.xlsx")
-        excel_out.write(route, path, cfg, files)
+        try:
+            excel_out.write(route, path, cfg, files)
+        except PermissionError:
+            # the old file is open in Excel (Windows locks it): write a new file next to it
+            import time
+            old = os.path.basename(path)
+            path = os.path.join(out_dir, f"{project}{label}_Route_Input_{time.strftime('%H%M%S')}.xlsx")
+            log(f"  {old} is open in Excel (or read-only) - saved as {os.path.basename(path)} instead. "
+                "Close the old file in Excel to keep the usual name next time.")
+            excel_out.write(route, path, cfg, files)
         nf = sum(q["status"] == "FAIL" for q in route.qa)
         nw = sum(q["status"] == "WARN" for q in route.qa)
         log(f"  -> {os.path.basename(path)}: {len(route.stations)} stations, {len(route.gradients)} gradients, "

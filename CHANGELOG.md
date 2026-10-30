@@ -10,6 +10,7 @@ QA FAILs on the RS17 Line-7 ring (4 in DN, 2 in UP) traced to the tool, not the 
 - Short stretches at drawing joints without a grade take the overlapping / incoming grade.
 - Vertical curve PVC/PVT marks that belong to other curves no longer override the written length.
 - Reading warnings outside the route's part of a profile are no longer listed.
+- Output file open in Excel: the route is saved under a new name (…_Route_Input_HHMMSS.xlsx) instead of failing.
 
 ## v0.4.0 - 2026-10-30
 - **Route through several drawings**: give the stations of the line in running order (new "Route to build"

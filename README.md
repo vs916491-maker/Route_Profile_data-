@@ -64,10 +64,12 @@ Extra label words can be added in `settings.json` → `row_keywords`.
 ## Output sheets
 | Sheet | Content |
 |---|---|
-| Stations, Gradients, Curves, Tunnels, SpeedLimits | SEC simulator input – same columns as the template (+ optional `comment`) |
-| VerticalCurves | VPI, start, end, radius, length, grade in/out, crest/sag |
-| Curve_Details | TS, SC, CS, ST, radius, transitions, cant, calculated speed |
-| Cant | run-out start/end, full-cant zone, cant mm, ramp 1 in N and ‰ |
+| Stations, Gradients, Horizontal Curves, Tunnels, SpeedLimits | SEC simulator input – same columns as the template (+ optional `comment`). The simulator reads *Horizontal Curves* as its Curves table (rs-sec-simulator with that update). |
+| VerticalCurves | from, to, radius, comment (crest / sag) – same layout as Horizontal Curves |
+| VC_Details | VPI, start, end, radius, length, grade in/out, crest/sag |
+| Horizontal_Curve_Details | TS, SC, CS, ST, radius, transitions, cant, calculated speed |
+| Cant | from (TS), to (ST), cant mm, comment – same rows as Horizontal Curves |
+| Cant_Details | run-out start/end, full-cant zone, cant mm, ramp 1 in N and ‰ |
 | Rail_Levels | rail and ground level per chainage |
 | QA | every check with OK / INFO / WARN / FAIL |
 | Sources | every value read: sheet, text, confidence, method |

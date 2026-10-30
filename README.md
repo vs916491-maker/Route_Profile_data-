@@ -1,4 +1,4 @@
-# Route Importer  (v0.2.0)
+# Route Importer  (v0.2.1)
 
 Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-input Excel
 (same layout as `RS17_Line7_Route_Input_v1.3.xlsx`, plus extra tabs).
@@ -8,8 +8,11 @@ Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-in
 2. Double-click `install_packages.py` (installs for your user only, no admin rights).
    - No internet / pip blocked? On any PC with internet run `make_offline_bundle.py`,
      copy the whole folder (with `wheels`) to the laptop, then run `install_packages.py`.
-3. For `.dwg` files: install the free **ODA File Converter** (opendesign.com). Without it,
-   save the DWG as DXF in any CAD viewer and load the DXF.
+3. For `.dwg` files (one time): double-click `get_dwg_reader.py`. It puts the portable LibreDWG
+   reader (`dwgread.exe`, free, nothing to install) into `tools/libredwg`.
+   If the download is blocked, get `libredwg-0.13.3-win64.zip` in your browser from
+   github.com/LibreDWG/libredwg/releases and unzip it into `tools/libredwg` yourself.
+   (If the ODA File Converter is installed, the tool uses that instead. A DXF never needs either.)
 
 Everything then runs offline — no internet, no cloud. No `.bat` files are used
 (they are often blocked on company laptops).

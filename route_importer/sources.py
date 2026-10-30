@@ -376,17 +376,24 @@ def find_oda() -> str | None:
 
 
 def read_dwg(path: str, log=print) -> list[Sheet]:
-    from ezdxf.addons import odafc
+    """DWG: ODA File Converter if installed, else LibreDWG's portable dwgread.exe
+    (unzipped into tools/libredwg - no installation needed)."""
+    from .dwg_libredwg import find_dwgread, read_doc
     exe = find_oda()
-    if not exe:
-        raise RuntimeError(
-            "Reading .dwg needs the free 'ODA File Converter' (opendesign.com). "
-            "Install it, or open the DWG in any CAD viewer and 'Save As' DXF, "
-            "then load the .dxf here.")
-    import ezdxf
-    ezdxf.options.set("odafc-addon", "win_exec_path" if os.name == "nt" else "unix_exec_path", exe)
-    doc = odafc.readfile(path)
-    return _sheets_from_doc(doc, path, log)
+    if exe:
+        import ezdxf
+        from ezdxf.addons import odafc
+        ezdxf.options.set("odafc-addon", "win_exec_path" if os.name == "nt" else "unix_exec_path", exe)
+        log("  reading DWG with ODA File Converter ...")
+        return _sheets_from_doc(odafc.readfile(path), path, log)
+    lib = find_dwgread()
+    if lib:
+        return _sheets_from_doc(read_doc(path, lib, log), path, log)
+    raise RuntimeError(
+        "No DWG reader found. Easiest (no installation): run get_dwg_reader.py once, or download "
+        "libredwg-0.13.3-win64.zip from github.com/LibreDWG/libredwg/releases and unzip it into the "
+        "'tools/libredwg' folder next to Route_Importer.pyw. Alternatives: install the free ODA File "
+        "Converter, or 'Save As' DXF in any CAD program and load the .dxf.")
 
 
 def read_dxf(path: str, log=print) -> list[Sheet]:

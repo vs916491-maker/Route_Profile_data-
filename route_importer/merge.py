@@ -132,6 +132,8 @@ def build_route(name: str, datas: list[SheetData], sheets, cfg: dict,
     for d in datas:
         for w in d.warnings:
             r.add_qa("Reading", "WARN", f"{d.sheet.label}: {w}")
+        for n in getattr(d, "info", []):
+            r.add_qa("Route", "INFO", n)
         if not d.ok:
             r.add_qa("Sheet skipped", "WARN", f"{d.sheet.label}: " + "; ".join(d.warnings or d.sheet.notes))
         for row, it, val, ch in d.items_used:

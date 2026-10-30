@@ -18,6 +18,10 @@ DEFAULTS = {
     "curve_extent_for_sec": "full",
     # gradient change point at each vertical curve: 'vpi' | 'pvt' | 'pvc'
     "gradient_change_at": "pvt",
+    # CAD drawings with several profiles: 'single' = one SEC route (direction below,
+    # branches joined in chainage order) | 'separate' = one file per profile
+    "cad_output": "single",
+    "cad_direction": "UP",
     # reading
     "ocr": "auto",                 # auto | always | never
     "ocr_dpi": 300,

@@ -73,6 +73,14 @@ class App(tk.Tk):
         self.extent = tk.StringVar(value=self.cfg["curve_extent_for_sec"])
         ttk.Combobox(sf, textvariable=self.extent, width=24, state="readonly",
                      values=["full", "arc_plus_half_transitions", "arc"]).grid(row=i, column=1, padx=4)
+        ttk.Label(sf, text="CAD output").grid(row=i + 4, column=0, sticky="w", padx=4)
+        self.cout = tk.StringVar(value=self.cfg.get("cad_output", "single"))
+        ttk.Combobox(sf, textvariable=self.cout, width=24, state="readonly",
+                     values=["single", "separate"]).grid(row=i + 4, column=1, padx=4)
+        ttk.Label(sf, text="Direction (single route)").grid(row=i + 5, column=0, sticky="w", padx=4)
+        self.cdir = tk.StringVar(value=self.cfg.get("cad_direction", "UP"))
+        ttk.Combobox(sf, textvariable=self.cdir, width=24, state="readonly",
+                     values=["UP", "DN"]).grid(row=i + 5, column=1, padx=4)
         ttk.Label(sf, text="Gradient changes at").grid(row=i + 3, column=0, sticky="w", padx=4)
         self.gat = tk.StringVar(value=self.cfg.get("gradient_change_at", "pvt"))
         ttk.Combobox(sf, textvariable=self.gat, width=24, state="readonly",
@@ -135,6 +143,8 @@ class App(tk.Tk):
             self.cfg[k] = kind(float(self.vars[k].get()))
         self.cfg["curve_extent_for_sec"] = self.extent.get()
         self.cfg["gradient_change_at"] = self.gat.get()
+        self.cfg["cad_output"] = self.cout.get()
+        self.cfg["cad_direction"] = self.cdir.get()
         self.cfg["ocr"] = self.ocr.get()
         self.cfg["sec_comment_column"] = self.cmt.get()
         config.save(self.cfg, SETTINGS)

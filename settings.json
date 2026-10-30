@@ -1,7 +1,7 @@
 {
   "dwell_s": 30,
   "terminal_dwell_s": 180,
-  "line_speed_kmh": 80,
+  "line_speed_kmh": 85,
   "speed_round_down_kmh": 5,
   "cant_gauge_mm": 1500,
   "cant_deficiency_mm": 100,
@@ -12,5 +12,7 @@
   "ocr_dpi": 300,
   "sec_comment_column": true,
   "row_keywords": {},
-  "gradient_change_at": "pvt"
+  "gradient_change_at": "pvt",
+  "cad_output": "single",
+  "cad_direction": "UP"
 }

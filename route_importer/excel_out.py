@@ -73,13 +73,16 @@ def write(route: Route, path: str, cfg: dict, files: list[str]):
         "  Radius in m, cant in mm, speed in km/h.",
         "",
         "Sheets",
-        "  Stations, Gradients, Curves, Tunnels, SpeedLimits : SEC simulator input (same layout as the template).",
-        "  VerticalCurves, Curve_Details, Cant, Rail_Levels : extra information from the drawings.",
+        "  Stations, Gradients, Horizontal Curves, Tunnels, SpeedLimits : SEC simulator input (same columns as the template;",
+        "    the simulator reads 'Horizontal Curves' as its Curves table - simulator version with that name needed).",
+        "  VerticalCurves, Cant : extra information, same simple layout as Horizontal Curves (from_m, to_m, value, comment).",
+        "  Horizontal_Curve_Details, VC_Details, Cant_Details : every point and value behind Horizontal Curves / VerticalCurves / Cant.",
+        "  Rail_Levels : rail levels read from the profile.",
         "  QA : checks - read every WARN / FAIL before using the file.   Sources : every value with sheet and OCR confidence.",
         "  Yellow rows = calculated or assumed values (not written in the drawing).",
         "",
         "How values were made",
-        f"  Curves sheet extent: {cfg['curve_extent_for_sec']} "
+        f"  Horizontal Curves extent: {cfg['curve_extent_for_sec']} "
         "(arc_plus_half_transitions = circular arc + half of each transition, same curve-resistance work).",
         f"  Cant where the drawing has none: transition length / ramp (default 1 in {cfg['cant_ramp_1_in']}), "
         f"max {cfg['max_cant_mm']} mm.",
@@ -106,7 +109,7 @@ def write(route: Route, path: str, cfg: dict, files: list[str]):
            {"comment": 48}, calc_col=2 if cmt else None)
 
     h = ["from_m", "to_m", "radius_m"] + (["comment"] if cmt else [])
-    _sheet(wb, "Curves", h,
+    _sheet(wb, "Horizontal Curves", h,
            [[c["sec_from"], c["sec_to"], c["R"]] +
             ([("Estimated end (off-sheet)" if c["partial"] else "From drawing")] if cmt else [])
             for c in route.curves], {"comment": 30})
@@ -119,14 +122,18 @@ def write(route: Route, path: str, cfg: dict, files: list[str]):
            {"comment": 60}, calc_col=2 if cmt else None)
 
     # ------------------------------------------------------------ extra sheets
-    _sheet(wb, "VerticalCurves",
-           ["vpi_m", "start_m", "end_m", "radius_m", "length_m", "grade_in_permil", "grade_out_permil",
-            "type", "comment", "source"],
-           [[r3(v["vpi"]), r3(v["start"]), r3(v["end"]), v["R"], r3(v["L"]), v["g_in"], v["g_out"],
-             v["type"], v["comment"], v["src"]] for v in route.vcurves],
-           {"source": 40, "comment": 26}, extra=True)
+    # simple tabs, same layout as Curves (from, to, value, comment)
+    _sheet(wb, "VerticalCurves", ["from_m", "to_m", "radius_m", "comment"],
+           [[r3(v["start"]), r3(v["end"]), v["R"],
+             (f"{v['type']} - " if v["type"] and v["type"] != "-" else "") + v["comment"]] for v in route.vcurves],
+           {"comment": 34}, extra=True)
 
-    _sheet(wb, "Curve_Details",
+    _sheet(wb, "Cant", ["from_m", "to_m", "cant_mm", "comment"],
+           [[r3(c["ts"]), r3(c["st"]), c["cant_mm"], c["comment"]] for c in route.cant],
+           {"comment": 60}, extra=True, calc_col=3)
+
+    # details behind the simple tabs (for checking against the drawing)
+    _sheet(wb, "Horizontal_Curve_Details",
            ["TS_m", "SC_m", "CS_m", "ST_m", "radius_m", "arc_length_m", "transition_in_m", "transition_out_m",
             "cant_mm", "speed_calc_kmh", "speed_limit_kmh", "speed_source", "sec_from_m", "sec_to_m",
             "curve_no", "direction", "source"],
@@ -135,7 +142,14 @@ def write(route: Route, path: str, cfg: dict, files: list[str]):
              c.get("curve_no", ""), c.get("dir") or "not in drawing", c["src"]] for c in route.curves],
            {"source": 40, "direction": 20}, extra=True)
 
-    _sheet(wb, "Cant",
+    _sheet(wb, "VC_Details",
+           ["vpi_m", "start_m", "end_m", "radius_m", "length_m", "grade_in_permil", "grade_out_permil",
+            "type", "comment", "source"],
+           [[r3(v["vpi"]), r3(v["start"]), r3(v["end"]), v["R"], r3(v["L"]), v["g_in"], v["g_out"],
+             v["type"], v["comment"], v["src"]] for v in route.vcurves],
+           {"source": 40, "comment": 26}, extra=True)
+
+    _sheet(wb, "Cant_Details",
            ["runout_in_start_m", "full_cant_from_m", "full_cant_to_m", "runout_out_end_m", "radius_m",
             "cant_mm", "ramp_1_in_N", "ramp_permil", "runout_in_m", "runout_out_m", "comment"],
            [[r3(c["ts"]), r3(c["sc"]), r3(c["cs"]), r3(c["st"]), c["R"], c["cant_mm"], c["ramp_n"],

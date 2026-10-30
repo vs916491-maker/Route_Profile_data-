@@ -38,7 +38,7 @@ def load_route(path):
     st = [(str(r["name"]), float(r["chainage_m"])) for r in _rows(wb, "Stations") if _num(r.get("chainage_m"))]
     gr = sorted((float(r["from_m"]), float(r["permil"])) for r in _rows(wb, "Gradients")
                 if _num(r.get("from_m")) and _num(r.get("permil")))
-    cu = sorted((float(r["from_m"]), float(r["to_m"]), float(r["radius_m"])) for r in _rows(wb, "Curves")
+    cu = sorted((float(r["from_m"]), float(r["to_m"]), float(r["radius_m"])) for r in (_rows(wb, "Horizontal Curves") or _rows(wb, "Curves"))
                 if _num(r.get("from_m")) and _num(r.get("radius_m")))
     sp = sorted((float(r["from_m"]), float(r["kmh"])) for r in _rows(wb, "SpeedLimits")
                 if _num(r.get("from_m")) and _num(r.get("kmh")))

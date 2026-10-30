@@ -10,6 +10,10 @@ QA FAILs on the RS17 Line-7 ring (4 in DN, 2 in UP) traced to the tool, not the 
 - Short stretches at drawing joints without a grade take the overlapping / incoming grade.
 - Vertical curve PVC/PVT marks that belong to other curves no longer override the written length.
 - Reading warnings outside the route's part of a profile are no longer listed.
+- Tab 'Curves' renamed 'Horizontal Curves' (and Curve_Details -> Horizontal_Curve_Details). The SEC simulator
+  reads it as its Curves table from rs-sec-simulator PR 'Horizontal Curves sheet' on.
+- VerticalCurves and Cant tabs now simple like Curves (from_m, to_m, radius / cant, comment); the full
+  columns moved to VC_Details and Cant_Details.
 - VerticalCurves sheet: grade_in / grade_out / type (crest, sag) now from the tangents either side of the
   curve - before, both showed the incoming grade.
 - Output file open in Excel: the route is saved under a new name (…_Route_Input_HHMMSS.xlsx) instead of failing.

@@ -760,7 +760,7 @@ def cut_and_join(pieces: list[Piece]) -> SheetData:
         out.speed += [s for s in d.speed if inside(s["ch"])]
         out.items_used += [u for u in d.items_used if u[3] is None or inside(u[3])]
         for w in d.warnings:
-            nums = [float(x) for x in re.findall(r"(?<![\d.])(-?\d{2,6}\.\d+)", w)[:2]]
+            nums = [float(x) for x in re.findall(r"(?<![\d.])(-?\d{2,6}\.\d+)", w.replace("..", " "))[:2]]
             span = (min(nums), max(nums)) if len(nums) == 2 and "grade" in w else None
             if not nums or (span and span[0] < hi and span[1] > lo) or (not span and inside(nums[0])):
                 out.warnings.append(f"{d.sheet.name}: {w}")

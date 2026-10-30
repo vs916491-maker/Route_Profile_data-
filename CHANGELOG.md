@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.4.1 - 2026-10-30
+QA FAILs on the RS17 Line-7 ring (4 in DN, 2 in UP) traced to the tool, not the drawings - all fixed (0 FAIL):
+- PVI level: where PVC, PVI and PVT each carry an 'Elev' label, the PVI's own label is taken (same
+  side offset as the PVC/PVT labels) - it took the PVC level at 57+387 (grade -15.3 instead of -16.6 permil).
+- Last / first tangent of a sheet (its other PVI is on the next sheet) now read from the rail levels or the
+  written grade - before, the previous grade ran on over the level stretch (55+603, 59+396).
+- Vertical curves at the first / last PVI of a sheet (with their PVC/PVT marks).
+- Short stretches at drawing joints without a grade take the overlapping / incoming grade.
+- Vertical curve PVC/PVT marks that belong to other curves no longer override the written length.
+- Reading warnings outside the route's part of a profile are no longer listed.
+
 ## v0.4.0 - 2026-10-30
 - **Route through several drawings**: give the stations of the line in running order (new "Route to build"
   box, Load/Save list, `route_stations` setting) and the tool builds ONE SEC file over all drawings on the

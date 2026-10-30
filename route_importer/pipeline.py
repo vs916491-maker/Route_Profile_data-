@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import os
+import re
 
 from . import excel_out
 from .bands import interpret
+from .cadprofile import interpret_sheet as interpret_cad
 from .merge import build_route
 from .sources import read_any
 
@@ -17,10 +19,22 @@ def run(files: list[str], out_dir: str, project: str, cfg: dict, log=print, shee
                 sheets += read_any(f, cfg["ocr"], int(cfg["ocr_dpi"]), log)
             except Exception as e:           # one bad file must not stop the others
                 log(f"  ERROR reading {os.path.basename(f)}: {e}")
-    main = [s for s in sheets if not s.is_depot]
-    depot = [s for s in sheets if s.is_depot]
     outs = []
     jobs = []
+    # CAD profiles without a ruled band table (labelled PVI / TS / SC ... texts):
+    # every profile strip becomes its own route file, named after its title
+    banded = []
+    for s in sheets:
+        if s.band_rows or not s.source.lower().endswith((".dxf", ".dwg")):
+            banded.append(s)
+            continue
+        log(f"{s.label}: no band table - reading as labelled CAD profile")
+        for d in interpret_cad(s, log):
+            tag = "_" + re.sub(r"[^A-Za-z0-9]+", "_", d.sheet.name).strip("_")
+            jobs.append((tag, [d], not d.sheet.is_depot))
+    sheets = banded
+    main = [s for s in sheets if not s.is_depot]
+    depot = [s for s in sheets if s.is_depot]
     if main:
         log(f"Interpreting {len(main)} main-line sheet(s) ...")
         jobs.append(("", [interpret(s, cfg.get("row_keywords")) for s in main], True))

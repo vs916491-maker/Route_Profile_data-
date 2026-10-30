@@ -68,7 +68,8 @@ def write(route: Route, path: str, cfg: dict, files: list[str]):
         "Units (as the SEC simulator expects)",
         "  Chainage in m (negative before km 0). Drawing chainages in km+m, km or m are converted.",
         "  Gradient in permil (‰), + = rising with increasing chainage. % x 10 = ‰ ; 1 in N = 1000/N ‰ ;",
-        "  rise over length = rise/length x 1000. Change points are at the vertical-curve VPI (middle of the curve).",
+        "  rise over length = rise/length x 1000. Change points at each vertical curve: "
+        f"{cfg.get('gradient_change_at', 'vpi').upper()} (setting gradient_change_at: VPI = middle, PVT = end, PVC = start).",
         "  Radius in m, cant in mm, speed in km/h.",
         "",
         "Sheets",
@@ -126,10 +127,11 @@ def write(route: Route, path: str, cfg: dict, files: list[str]):
 
     _sheet(wb, "Curve_Details",
            ["TS_m", "SC_m", "CS_m", "ST_m", "radius_m", "arc_length_m", "transition_in_m", "transition_out_m",
-            "cant_mm", "speed_calc_kmh", "speed_limit_kmh", "sec_from_m", "sec_to_m", "direction", "source"],
+            "cant_mm", "speed_calc_kmh", "speed_limit_kmh", "speed_source", "sec_from_m", "sec_to_m",
+            "curve_no", "direction", "source"],
            [[r3(c["ts"]), r3(c["sc"]), r3(c["cs"]), r3(c["st"]), c["R"], c["arc_L"], c["TL_in"], c["TL_out"],
-             c["cant_mm"], c["v_calc"], c["v_limit"], c["sec_from"], c["sec_to"],
-             "not in band (see plan)", c["src"]] for c in route.curves],
+             c["cant_mm"], c["v_calc"], c["v_limit"], c.get("v_src", ""), c["sec_from"], c["sec_to"],
+             c.get("curve_no", ""), c.get("dir") or "not in drawing", c["src"]] for c in route.curves],
            {"source": 40, "direction": 20}, extra=True)
 
     _sheet(wb, "Cant",

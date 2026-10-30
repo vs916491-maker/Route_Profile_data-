@@ -78,6 +78,7 @@ class SheetData:
     ground: list = field(default_factory=list)
     cant: list = field(default_factory=list)            # dict(ch, cant_mm | ramp_n)
     speed: list = field(default_factory=list)           # dict(ch, kmh)
+    stations: list = field(default_factory=list)        # dict(name, ch, src) when the reader finds them
     items_used: list = field(default_factory=list)      # for the Sources sheet
     warnings: list = field(default_factory=list)
     ok: bool = False

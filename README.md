@@ -1,4 +1,4 @@
-# Route Importer  (v0.2.1)
+# Route Importer  (v0.2.2)
 
 Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-input Excel
 (same layout as `RS17_Line7_Route_Input_v1.3.xlsx`, plus extra tabs).
@@ -13,6 +13,8 @@ Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-in
    If the download is blocked, get `libredwg-0.13.3-win64.zip` in your browser from
    github.com/LibreDWG/libredwg/releases and unzip it into `tools/libredwg` yourself.
    (If the ODA File Converter is installed, the tool uses that instead. A DXF never needs either.)
+   If Windows Application Control blocks `dwgread.exe` (company laptops), save the DWG as DXF in any CAD
+   program (AutoCAD / LT, BricsCAD, DraftSight, LibreCAD) and load the DXF, or ask IT to allow the file.
 
 Everything then runs offline — no internet, no cloud. No `.bat` files are used
 (they are often blocked on company laptops).

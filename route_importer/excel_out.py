@@ -89,19 +89,22 @@ def write(route: Route, path: str, cfg: dict, files: list[str]):
         f"  Speed where the drawing has none: line speed {cfg['line_speed_kmh']} km/h; on curves "
         f"V = sqrt(127 x R x (Ca + Cd) / G), Cd = {cfg['cant_deficiency_mm']} mm, G = {cfg['cant_gauge_mm']} mm,",
         f"  rounded down to {cfg['speed_round_down_kmh']} km/h, applied from TS to ST. Marked 'Calculated'.",
-        f"  Dwell {cfg['dwell_s']} s; terminals {cfg['terminal_dwell_s']} s.",
+        (f"  Dwell {cfg['dwell_s']} s; terminals {cfg['terminal_dwell_s']} s" if cfg.get("dwell_s") is not None
+         else "  Dwell: per station only (settings blank)") + "; 'NAME dwell=17' in the route list overrides.",
         "  Tunnels: CAD drawings - from START/END OF U/G RAMP, C&C, TBM, ELEVATED RAMP marks (see QA); "
         "PDF band drawings - not read, enter underground sections manually.",
         "",
         "Import: Route tab -> Import Excel / CSV -> this file.",
     ]
+    if getattr(route, "readme", None):
+        lines = route.readme + ["", f"Generated: {dt.datetime.now():%Y-%m-%d %H:%M} by Route Importer"]
     for ln in lines:
         ws.append([ln])
     ws.column_dimensions["A"].width = 120
 
     # ------------------------------------------------------------- SEC sheets
     _sheet(wb, "Stations", ["name", "chainage_m", "dwell_s"],
-           [[s["name"], r3(s["ch"]), s["dwell"]] for s in route.stations], {"name": 28})
+           [[s["name"], r3(s["ch"]), s.get("dwell")] for s in route.stations], {"name": 28})
 
     h = ["from_m", "permil"] + (["comment"] if cmt else [])
     _sheet(wb, "Gradients", h,

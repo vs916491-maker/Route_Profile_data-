@@ -29,10 +29,49 @@ class Route:
     qa: list = field(default_factory=list)             # dict(check, ch, expected, found, status, note)
     sources: list = field(default_factory=list)
     sheets: list = field(default_factory=list)
+    readme: list = field(default_factory=list)          # README lines (replaces the drawing text)
 
     def add_qa(self, check, status, note="", ch=None, expected="", found=""):
         self.qa.append({"check": check, "ch": ch, "expected": expected, "found": found,
                         "status": status, "note": note})
+
+
+# ------------------------------------------------------------------ dwell
+_DWELL = re.compile(r"\b(?:dwell|dw)[ \t]*[:=]?[ \t]*(\d+(?:\.\d+)?)[ \t]*s?\b", re.I)
+
+
+def route_dwells(text: str) -> dict:
+    """{STATION NAME: dwell s} from route-list lines such as 'LGP dwell=17' or 'KH = 30324 dwell 20'."""
+    out = {}
+    for ln in (text or "").splitlines():
+        ln = ln.split("#")[0]
+        for part in re.split(r">|;", ln):
+            m = _DWELL.search(part)
+            if not m:
+                continue
+            name = re.sub(r"\s*[=@]\s*-?\d+(?:\.\d+)?\s*$", "", _DWELL.sub("", part)).strip().upper()
+            if name:
+                out[name] = float(m.group(1))
+    return out
+
+
+def apply_dwells(st: list, cfg: dict, r) -> None:
+    """Dwell per station from the route list; settings left blank -> empty cell + QA warning."""
+    given = route_dwells(cfg.get("route_stations", ""))
+    if given:
+        from .cadlabels import name_score
+        for s in st:
+            best = max(given, key=lambda n: name_score(n, s["name"]))
+            if name_score(best, s["name"]) >= 0.85 or (len(best.split()) == 1 and best == s["name"].split()[0]):
+                s["dwell"] = given[best]
+                s["dwell_src"] = "route list"
+    blank = [s["name"] for s in st if s.get("dwell") in (None, "")]
+    if blank:
+        r.add_qa("Dwell", "WARN", "no dwell for " + ", ".join(blank)[:300] + " - give it per station in the route "
+                 "list ('NAME dwell=17') or fill the dwell_s column; the simulator takes an empty dwell as 0 s")
+    elif given:
+        r.add_qa("Dwell", "INFO", f"dwell per station from the route list for "
+                 f"{sum(1 for s in st if s.get('dwell_src'))} of {len(st)} stations; terminals = turnaround time")
 
 
 # ------------------------------------------------------------------ stations
@@ -176,7 +215,8 @@ def build_route(name: str, datas: list[SheetData], sheets, cfg: dict,
             st, loose = find_stations(sheets)
         for i, s in enumerate(st):
             term = i == 0 or i == len(st) - 1
-            s["dwell"] = cfg["terminal_dwell_s"] if term else cfg["dwell_s"]
+            s["dwell"] = cfg.get("terminal_dwell_s") if term else cfg.get("dwell_s")
+        apply_dwells(st, cfg, r)
         r.stations = st
         for line, src in loose:
             r.add_qa("Station without chainage", "WARN",

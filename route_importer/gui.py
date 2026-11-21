@@ -52,7 +52,7 @@ class App(tk.Tk):
         ttk.Button(top, text="...", width=3, command=self._pick_out).pack(side="left")
 
         mid = ttk.Frame(self); mid.pack(fill="both", expand=False, **pad)
-        lf = ttk.LabelFrame(mid, text="Drawings (PDF, DXF, DWG) - one section can have many files")
+        lf = ttk.LabelFrame(mid, text="Drawings (PDF, DXF, DWG) or LandXML alignment (.xml) - one section can have many files")
         lf.pack(side="left", fill="both", expand=True)
         self.lb = tk.Listbox(lf, height=10, selectmode="extended")
         self.lb.pack(fill="both", expand=True, padx=4, pady=4)
@@ -66,7 +66,7 @@ class App(tk.Tk):
         self.vars = {}
         for i, (k, lab, _) in enumerate(FIELDS):
             ttk.Label(sf, text=lab).grid(row=i, column=0, sticky="w", padx=4, pady=1)
-            v = tk.StringVar(value=str(self.cfg[k])); self.vars[k] = v
+            v = tk.StringVar(value="" if self.cfg.get(k) is None else str(self.cfg[k])); self.vars[k] = v
             ttk.Entry(sf, textvariable=v, width=9).grid(row=i, column=1, padx=4)
         i = len(FIELDS)
         ttk.Label(sf, text="Curve extent for SEC").grid(row=i, column=0, sticky="w", padx=4)
@@ -95,7 +95,8 @@ class App(tk.Tk):
 
         rt = ttk.LabelFrame(self, text="Route to build (optional): stations in running order, one per line or "
                                        "separated by '>'.  'NAME = 66045' fixes a station the drawings do not show "
-                                       "(e.g. the ring closing back at the start).  Empty = whole drawings.")
+                                       "(e.g. the ring closing back at the start).  'NAME dwell=17' gives that station its own dwell "
+                                       "(terminal: turnaround time).  Empty = whole drawings.")
         rt.pack(fill="x", **pad)
         self.route = tk.Text(rt, height=4, wrap="word", font=("Consolas", 9))
         self.route.pack(side="left", fill="x", expand=True, padx=4, pady=4)
@@ -127,7 +128,7 @@ class App(tk.Tk):
             self.out.set(d)
 
     def _add(self):
-        fs = filedialog.askopenfilenames(filetypes=[("Drawings", "*.pdf *.dxf *.dwg *.dgn"), ("PDF / DXF / DWG", "*.pdf *.dxf *.dwg"), ("All", "*.*")])
+        fs = filedialog.askopenfilenames(filetypes=[("Drawings and alignment files", "*.pdf *.dxf *.dwg *.dgn *.xml"), ("PDF / DXF / DWG", "*.pdf *.dxf *.dwg"), ("LandXML alignment", "*.xml"), ("All", "*.*")])
         for f in fs:
             if f not in self.files:
                 self.files.append(f); self.lb.insert("end", f)
@@ -164,8 +165,15 @@ class App(tk.Tk):
             subprocess.Popen(["xdg-open", p])
 
     def _collect_cfg(self):
-        for k, _, kind in FIELDS:
-            self.cfg[k] = kind(float(self.vars[k].get()))
+        for k, label, kind in FIELDS:
+            v = self.vars[k].get().strip()
+            if not v and k in ("dwell_s", "terminal_dwell_s"):
+                self.cfg[k] = None          # blank: per station from the route list, or left empty
+                continue
+            try:
+                self.cfg[k] = kind(float(v))
+            except ValueError:
+                raise ValueError(f"'{label}' must be a number (it is '{v}')") from None
         self.cfg["curve_extent_for_sec"] = self.extent.get()
         self.cfg["gradient_change_at"] = self.gat.get()
         self.cfg["cad_output"] = self.cout.get()

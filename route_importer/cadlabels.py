@@ -541,6 +541,7 @@ def parse_route(text: str) -> list[tuple[str, float | None]]:
     chainage the drawings do not show."""
     out = []
     text = "\n".join(ln.split("#")[0] for ln in (text or "").splitlines())    # '# comments'
+    text = re.sub(r"\b(?:dwell|dw)[ \t]*[:=]?[ \t]*\d+(?:\.\d+)?[ \t]*s?\b", "", text, flags=re.I)   # 'dwell=17'
     for part in re.split(r">|\n|;", text):
         part = part.strip()
         if not part:

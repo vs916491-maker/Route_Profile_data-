@@ -13,6 +13,22 @@ from .sources import read_any
 
 
 def run(files: list[str], out_dir: str, project: str, cfg: dict, log=print, sheets=None) -> list[str]:
+    outs = []
+    # LandXML alignment files: exact design data, no drawing to interpret
+    xmls = [f for f in files if f.lower().endswith(".xml")]
+    files = [f for f in files if f not in xmls]
+    for f in xmls:
+        log(f"Reading {os.path.basename(f)} (LandXML alignment)")
+        try:
+            from .landxml import routes as xml_routes
+            found = xml_routes(f, cfg, log)
+        except Exception as e:
+            log(f"  ERROR reading {os.path.basename(f)}: {e}")
+            continue
+        if not found:
+            log("  no track alignment with geometry found in this file")
+        for label, route, main in found:
+            outs.append(_write(route, out_dir, f"{project}_{label}", cfg, [f], log))
     if sheets is None:
         sheets = []
         for f in files:
@@ -20,7 +36,6 @@ def run(files: list[str], out_dir: str, project: str, cfg: dict, log=print, shee
                 sheets += read_any(f, cfg["ocr"], int(cfg["ocr_dpi"]), log)
             except Exception as e:           # one bad file must not stop the others
                 log(f"  ERROR reading {os.path.basename(f)}: {e}")
-    outs = []
     jobs = []
     # CAD profiles without a ruled band table (labelled PVI / TS / SC ... texts)
     banded, profs_all = [], []
@@ -82,23 +97,27 @@ def run(files: list[str], out_dir: str, project: str, cfg: dict, log=print, shee
         if not any(d.ok for d in datas):
             log("  nothing readable - no file written")
             continue
-        path = os.path.join(out_dir, f"{project}{label}_Route_Input.xlsx")
-        try:
-            excel_out.write(route, path, cfg, files)
-        except PermissionError:
-            # the old file is open in Excel (Windows locks it): write a new file next to it
-            import time
-            old = os.path.basename(path)
-            path = os.path.join(out_dir, f"{project}{label}_Route_Input_{time.strftime('%H%M%S')}.xlsx")
-            log(f"  {old} is open in Excel (or read-only) - saved as {os.path.basename(path)} instead. "
-                "Close the old file in Excel to keep the usual name next time.")
-            excel_out.write(route, path, cfg, files)
-        nf = sum(q["status"] == "FAIL" for q in route.qa)
-        nw = sum(q["status"] == "WARN" for q in route.qa)
-        log(f"  -> {os.path.basename(path)}: {len(route.stations)} stations, {len(route.gradients)} gradients, "
-            f"{len(route.curves)} curves, {len(route.vcurves)} vertical curves | QA {nf} FAIL, {nw} WARN")
-        outs.append(path)
+        outs.append(_write(route, out_dir, f"{project}{label}", cfg, files, log))
     return outs
+
+
+def _write(route, out_dir, stem, cfg, files, log):
+    path = os.path.join(out_dir, f"{stem}_Route_Input.xlsx")
+    try:
+        excel_out.write(route, path, cfg, files)
+    except PermissionError:
+        # the old file is open in Excel (Windows locks it): write a new file next to it
+        import time
+        old = os.path.basename(path)
+        path = os.path.join(out_dir, f"{stem}_Route_Input_{time.strftime('%H%M%S')}.xlsx")
+        log(f"  {old} is open in Excel (or read-only) - saved as {os.path.basename(path)} instead. "
+            "Close the old file in Excel to keep the usual name next time.")
+        excel_out.write(route, path, cfg, files)
+    nf = sum(q["status"] == "FAIL" for q in route.qa)
+    nw = sum(q["status"] == "WARN" for q in route.qa)
+    log(f"  -> {os.path.basename(path)}: {len(route.stations)} stations, {len(route.gradients)} gradients, "
+        f"{len(route.curves)} curves, {len(route.vcurves)} vertical curves | QA {nf} FAIL, {nw} WARN")
+    return path
 
 
 def split_tracks(datas):

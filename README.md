@@ -1,4 +1,4 @@
-# Route Importer  (v0.4.2)
+# Route Importer  (v0.5.0)
 
 Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-input Excel
 (same layout as `RS17_Line7_Route_Input_v1.3.xlsx`, plus extra tabs).
@@ -48,6 +48,21 @@ Output:
   - other names a drawing uses for a station: `station_aliases` in settings.json
     (e.g. `"MUKUNDPUR": ["MAJLIS PARK"]`)
 - `<name>_Depot_Route_Input.xlsx` – sheets whose title says DEPOT
+- **LandXML alignment file (.xml)** (Bentley OpenRail, Civil 3D …, e.g. Copenhagen M5
+  `…-ALG-MDM-220000 … Base Scheme.xml`): exact design data, nothing read from a drawing –
+  one file per track, `<name>_Mainline_Track_1_Route_Input.xlsx`, `…_Track_2_…`, other tracks
+  (CMC / depot connections) as separate files; crossovers and shafts listed in QA only.
+  - geometry: Line / Spiral / Curve elements → Horizontal Curves (TS, SC, CS, ST, R, transitions)
+  - profile: PVI + vertical-curve lengths → Gradients, VerticalCurves, track level every 10 m
+  - SpeedStation → SpeedLimits, CantStation (applied cant) → Cant
+  - stations: the `<CODE> STATION` alignments, stop point = their middle projected on each track
+  - tunnels are not in LandXML – enter them in the Tunnels sheet
+- **Dwell per station**: write `NAME dwell=17` in the route box (one station per line, e.g.
+  `PRB dwell=16`, `KH dwell=20`); a terminal's value is its turnaround time. Leave *Dwell* /
+  *Terminal dwell* in the settings **blank** to use only the per-station values – stations without
+  a value get an empty dwell_s cell and a QA WARN (the simulator would take it as 0 s).
+- MicroStation **.dgn** drawings are listed but cannot be read (Bentley's compressed format):
+  save them as DWG/DXF in MicroStation or AutoCAD (DGNIMPORT), or use the LandXML export.
 
 ## How it reads drawings
 | Input | How |

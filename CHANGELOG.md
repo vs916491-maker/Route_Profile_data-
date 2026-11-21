@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.5.0 - 2026-11-21
+- **LandXML alignment files (.xml)** can be added like drawings: one SEC route file per track with
+  stations, gradients, horizontal curves (with transitions), speed limits, cant, vertical curves and
+  track levels, straight from the design data. Checked on Copenhagen M5 (Alignment V2.10, Config 1):
+  stations within 3 cm of the M5 Track Data draft, all speeds, radii and gradients identical.
+  All Cant sections of an alignment are read (the M5 file has 7 per track, stored twice).
+- **Dwell per station**: `NAME dwell=17` in the route box; Dwell / Terminal dwell settings may be left
+  blank (stations without a value: empty cell + QA WARN).
+
 ## v0.4.2 - 2026-11-21
 - Add files: the file list now also shows MicroStation .dgn drawings (they were hidden by the
   PDF/DXF/DWG filter). DGN cannot be read offline: the tool says so and how to convert it

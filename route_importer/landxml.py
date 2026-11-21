@@ -19,7 +19,7 @@ import re
 import xml.etree.ElementTree as ET
 
 from . import units
-from .merge import Route, apply_dwells
+from .merge import Route, apply_dwells, apply_tunnels
 
 
 # ------------------------------------------------------------------ parsing
@@ -331,8 +331,9 @@ def build(a: dict, stations: list, cfg: dict, src: str) -> Route:
                  f"calculated from the transition length at 1 in {ramp:g} (information only: the speed "
                  "limits come from the speed stations)")
     # ---------------------------------------------------------- QA / sources
-    r.add_qa("Tunnels", "WARN", "LandXML alignments carry no tunnel / viaduct data - enter underground "
-             "sections in the Tunnels sheet if the line has any")
+    if not apply_tunnels(r, cfg):
+        r.add_qa("Tunnels", "WARN", "LandXML alignments carry no tunnel / viaduct data - give them in the route "
+                 "list ('TUNNEL 23385 - END') or enter them in the Tunnels sheet")
     r.add_qa("Source", "INFO", f"{src}: {len(a['elems'])} geometry elements, {len(pv)} PVIs, "
              f"{len(sp)} speed stations, {len(ca)} cant stations; chainage {units.fmt_chainage(r.start)} to "
              f"{units.fmt_chainage(r.end)}")
@@ -355,7 +356,7 @@ def build(a: dict, stations: list, cfg: dict, src: str) -> Route:
         f"  Horizontal Curves: Curve elements with their spirals, extent '{ext}' (full = TS to ST).",
         "  SpeedLimits: the speed stations of the LandXML.",
         "  Cant: applied cant of the cant stations; where the file has none, transition length / ramp (marked Calculated).",
-        "  Tunnels: not in LandXML - enter manually.",
+        "  Tunnels: not in LandXML - from 'TUNNEL from - to' lines of the route list (see QA), else enter manually.",
         "",
         "Sheets: Stations, Gradients, Horizontal Curves, Tunnels, SpeedLimits = SEC simulator input;",
         "  VerticalCurves, Cant, *_Details, Rail_Levels (track level every 10 m), QA, Sources = information.",

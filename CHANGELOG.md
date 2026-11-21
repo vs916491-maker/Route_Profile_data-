@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.5.1 - 2026-11-21
+- **Tunnels in the route box**: `TUNNEL 23385 - END`, optional `[Track 2]` to aim at one output; they
+  replace the tunnels read from drawings and fill the Tunnels sheet for LandXML routes.
+
 ## v0.5.0 - 2026-11-21
 - **LandXML alignment files (.xml)** can be added like drawings: one SEC route file per track with
   stations, gradients, horizontal curves (with transitions), speed limits, cant, vertical curves and

@@ -74,6 +74,44 @@ def apply_dwells(st: list, cfg: dict, r) -> None:
                  f"{sum(1 for s in st if s.get('dwell_src'))} of {len(st)} stations; terminals = turnaround time")
 
 
+# ------------------------------------------------------------------ tunnels from the route list
+_TUN = re.compile(r"^\s*TUNNEL\s*(?:\[(?P<tag>[^\]]+)\])?\s*:?\s*(?P<a>-?\d+(?:\.\d+)?)\s*(?:-|to|\.\.)\s*"
+                  r"(?P<b>-?\d+(?:\.\d+)?|END)\s*$", re.I)
+
+
+def route_tunnels(text: str, route_name: str = "") -> list:
+    """'TUNNEL 23385 - END' or 'TUNNEL [Track 2] 23328 - 30325' lines of the route list ->
+    [(from, to or None)] for this route ([tag] = part of the route / track name)."""
+    out = []
+    for ln in (text or "").splitlines():
+        m = _TUN.match(ln.split("#")[0])
+        if not m:
+            continue
+        tag = (m.group("tag") or "").strip().lower()
+        if tag and not re.search(r"(?<![a-z0-9])" + re.escape(tag) + r"(?![a-z0-9])", route_name.lower()):
+            continue
+        b = None if m.group("b").upper() == "END" else float(m.group("b"))
+        out.append((float(m.group("a")), b))
+    return out
+
+
+def apply_tunnels(r, cfg) -> bool:
+    """Tunnels given in the route list replace those read from the drawings. True if any."""
+    given = route_tunnels(cfg.get("route_stations", ""), r.name)
+    if not given:
+        return False
+    tl = []
+    for a, b in given:
+        a, b = max(a, r.start), min(r.end if b is None else b, r.end)
+        if b > a:
+            tl.append((round(a, 3), round(b, 3)))
+    r.tunnels = sorted(tl)
+    r.qa = [q for q in r.qa if q["check"] not in ("Tunnel", "Tunnels")]
+    for a, b in r.tunnels:
+        r.add_qa("Tunnel", "INFO", f"{fmt_chainage(a)}..{fmt_chainage(b)} from the route list (TUNNEL line)", a)
+    return True
+
+
 # ------------------------------------------------------------------ stations
 _ST = re.compile(r"([A-Z][A-Za-z0-9 .()&'\-/]*?)\s*\bCH\s*[:.]?\s*(-?\d{1,3}\s*\+\s*\d{3}(?:\.\d+)?)")
 _NOISE = {"ROOF", "LVL", "LEVEL", "PORTAL", "PIER", "PRO", "PRO.", "GRADIENT", "BSRP", "RAIL", "TRACK",
@@ -188,6 +226,7 @@ def build_route(name: str, datas: list[SheetData], sheets, cfg: dict,
                          "(U/G ramp, cut & cover, TBM count as tunnel)", a)
             for n in getattr(d, "tunnel_notes", []):
                 r.add_qa("Tunnel", "WARN", n)
+    apply_tunnels(r, cfg)
 
     # -------------------------------------------------------- coverage
     spans = sorted((d.ch_min, d.ch_max) for d in good)

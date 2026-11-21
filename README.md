@@ -1,4 +1,4 @@
-# Route Importer  (v0.5.0)
+# Route Importer  (v0.5.1)
 
 Offline tool: customer GAD / L-section drawings (DWG, DXF, PDF) → SEC route-input Excel
 (same layout as `RS17_Line7_Route_Input_v1.3.xlsx`, plus extra tabs).
@@ -56,7 +56,10 @@ Output:
   - profile: PVI + vertical-curve lengths → Gradients, VerticalCurves, track level every 10 m
   - SpeedStation → SpeedLimits, CantStation (applied cant) → Cant
   - stations: the `<CODE> STATION` alignments, stop point = their middle projected on each track
-  - tunnels are not in LandXML – enter them in the Tunnels sheet
+  - tunnels are not in LandXML – give them in the route box (below) or the Tunnels sheet
+- **Tunnels in the route box**: `TUNNEL 23385 - END` (from – to in m, `END` = end of the route);
+  `TUNNEL [Track 2] 23328 - END` applies to the output whose name contains *Track 2* only.
+  These replace the tunnels read from the drawings (QA INFO says so).
 - **Dwell per station**: write `NAME dwell=17` in the route box (one station per line, e.g.
   `PRB dwell=16`, `KH dwell=20`); a terminal's value is its turnaround time. Leave *Dwell* /
   *Terminal dwell* in the settings **blank** to use only the per-station values – stations without

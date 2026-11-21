@@ -96,7 +96,7 @@ class App(tk.Tk):
         rt = ttk.LabelFrame(self, text="Route to build (optional): stations in running order, one per line or "
                                        "separated by '>'.  'NAME = 66045' fixes a station the drawings do not show "
                                        "(e.g. the ring closing back at the start).  'NAME dwell=17' gives that station its own dwell "
-                                       "(terminal: turnaround time).  Empty = whole drawings.")
+                                       "(terminal: turnaround time).  'TUNNEL 23385 - END' adds a tunnel.  Empty = whole drawings.")
         rt.pack(fill="x", **pad)
         self.route = tk.Text(rt, height=4, wrap="word", font=("Consolas", 9))
         self.route.pack(side="left", fill="x", expand=True, padx=4, pady=4)

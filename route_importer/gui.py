@@ -127,7 +127,7 @@ class App(tk.Tk):
             self.out.set(d)
 
     def _add(self):
-        fs = filedialog.askopenfilenames(filetypes=[("Drawings", "*.pdf *.dxf *.dwg"), ("All", "*.*")])
+        fs = filedialog.askopenfilenames(filetypes=[("Drawings", "*.pdf *.dxf *.dwg *.dgn"), ("PDF / DXF / DWG", "*.pdf *.dxf *.dwg"), ("All", "*.*")])
         for f in fs:
             if f not in self.files:
                 self.files.append(f); self.lb.insert("end", f)

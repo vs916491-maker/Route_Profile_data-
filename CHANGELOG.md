@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.4.2 - 2026-11-21
+- Add files: the file list now also shows MicroStation .dgn drawings (they were hidden by the
+  PDF/DXF/DWG filter). DGN cannot be read offline: the tool says so and how to convert it
+  (MicroStation Save As DWG/DXF, AutoCAD DGNIMPORT) instead of silently skipping it.
+
 ## v0.4.1 - 2026-10-30
 QA FAILs on the RS17 Line-7 ring (4 in DN, 2 in UP) traced to the tool, not the drawings - all fixed (0 FAIL):
 - PVI level: where PVC, PVI and PVT each carry an 'Elev' label, the PVI's own label is taken (same

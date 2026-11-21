@@ -517,4 +517,10 @@ def read_any(path: str, use_ocr="auto", ocr_dpi=300, log=print) -> list[Sheet]:
         return read_dxf(path, log)
     if ext == ".dwg":
         return read_dwg(path, log)
-    raise ValueError(f"Unsupported file type: {ext}")
+    if ext == ".dgn":
+        raise RuntimeError(
+            "this is a MicroStation DGN drawing - the tool cannot read DGN (Bentley's format, no free "
+            "offline reader). Convert it first: in MicroStation File > Save As > DWG or DXF; in AutoCAD "
+            "use the DGNIMPORT command, then save as DWG/DXF; or ask the customer for the DWG or PDF of "
+            "this drawing. Then add the converted file here.")
+    raise ValueError(f"Unsupported file type: {ext} (the tool reads PDF, DXF and DWG)")

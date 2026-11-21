@@ -28,6 +28,13 @@ FIELDS = [  # key, label, kind
 ]
 
 
+def _num(v):
+    """85.0 -> '85', None -> ''."""
+    if v is None:
+        return ""
+    return str(int(v)) if float(v) == int(float(v)) else str(v)
+
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -61,12 +68,12 @@ class App(tk.Tk):
         ttk.Button(bf, text="Remove", command=self._remove).pack(side="left")
         ttk.Button(bf, text="Clear", command=self._clear).pack(side="left", padx=4)
 
-        sf = ttk.LabelFrame(mid, text="Settings (used when the drawing has no value)")
+        sf = ttk.LabelFrame(mid, text="Settings (used only when the drawing / XML has no value; blank = default)")
         sf.pack(side="left", fill="y", padx=(8, 0))
         self.vars = {}
         for i, (k, lab, _) in enumerate(FIELDS):
             ttk.Label(sf, text=lab).grid(row=i, column=0, sticky="w", padx=4, pady=1)
-            v = tk.StringVar(value="" if self.cfg.get(k) is None else str(self.cfg[k])); self.vars[k] = v
+            v = tk.StringVar(value=_num(self.cfg.get(k))); self.vars[k] = v
             ttk.Entry(sf, textvariable=v, width=9).grid(row=i, column=1, padx=4)
         i = len(FIELDS)
         ttk.Label(sf, text="Curve extent for SEC").grid(row=i, column=0, sticky="w", padx=4)
@@ -96,7 +103,7 @@ class App(tk.Tk):
         rt = ttk.LabelFrame(self, text="Route to build (optional): stations in running order, one per line or "
                                        "separated by '>'.  'NAME = 66045' fixes a station the drawings do not show "
                                        "(e.g. the ring closing back at the start).  'NAME dwell=17' gives that station its own dwell "
-                                       "(terminal: turnaround time).  Empty = whole drawings.")
+                                       "(terminal: turnaround time).  'TUNNEL 23385 - END' adds a tunnel.  Empty = whole drawings.")
         rt.pack(fill="x", **pad)
         self.route = tk.Text(rt, height=4, wrap="word", font=("Consolas", 9))
         self.route.pack(side="left", fill="x", expand=True, padx=4, pady=4)
@@ -169,6 +176,10 @@ class App(tk.Tk):
             v = self.vars[k].get().strip()
             if not v and k in ("dwell_s", "terminal_dwell_s"):
                 self.cfg[k] = None          # blank: per station from the route list, or left empty
+                continue
+            if not v:                       # blank: the built-in default
+                self.cfg[k] = config.DEFAULTS[k]
+                self.vars[k].set(_num(self.cfg[k]))
                 continue
             try:
                 self.cfg[k] = kind(float(v))

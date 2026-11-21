@@ -544,7 +544,7 @@ def parse_route(text: str) -> list[tuple[str, float | None]]:
     text = re.sub(r"\b(?:dwell|dw)[ \t]*[:=]?[ \t]*\d+(?:\.\d+)?[ \t]*s?\b", "", text, flags=re.I)   # 'dwell=17'
     for part in re.split(r">|\n|;", text):
         part = part.strip()
-        if not part:
+        if not part or re.match(r"^TUNNEL\b", part, re.I):     # 'TUNNEL a - b' lines are not stations
             continue
         m = re.match(r"^(.*?)\s*[=@]\s*(-?\d+(?:\.\d+)?)\s*$", part)
         out.append((m.group(1).strip().upper(), float(m.group(2))) if m else (part.upper(), None))
